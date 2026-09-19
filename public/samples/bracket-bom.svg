@@ -7,7 +7,7 @@
 <path stroke="#777" d="M1020 535h630M1020 490v70M1650 490v70M1034 522l-14 13 14 13M1636 522l14 13-14 13"/>
 <rect x="70" y="710" width="1860" height="510"/><path d="M70 795h1860M70 880h1860M70 965h1860M70 1050h1860M70 1135h1860M210 710v510M620 710v510M1240 710v510M1400 710v510"/>
 </g>
-<g fill="#222" font-family="Arial,sans-serif"><text x="100" y="105" font-size="38" font-weight="bold">BRACKET ASSEMBLY</text><text x="100" y="630" font-size="27">ISOMETRIC VIEW</text><text x="1230" y="520" font-size="26">160 mm</text><text x="1050" y="630" font-size="27">FRONT VIEW · NOT TO SCALE</text>
+<g fill="#222" font-family="Liberation Sans,sans-serif"><text x="100" y="105" font-size="38" font-weight="bold">BRACKET ASSEMBLY</text><text x="100" y="630" font-size="27">ISOMETRIC VIEW</text><text x="1230" y="520" font-size="26">160 mm</text><text x="1050" y="630" font-size="27">FRONT VIEW · NOT TO SCALE</text>
 <g font-size="30" font-weight="bold"><text x="90" y="765">ITEM</text><text x="235" y="765">PART NUMBER</text><text x="650" y="765">DESCRIPTION</text><text x="1260" y="765">QTY</text><text x="1430" y="765">MATERIAL</text></g>
 <g font-size="30"><text x="90" y="850">1</text><text x="235" y="850">BRK-100</text><text x="650" y="850">Mounting bracket</text><text x="1260" y="850">1</text><text x="1430" y="850">Aluminium 6061</text>
 <text x="90" y="935">2</text><text x="235" y="935">PIN-020</text><text x="650" y="935">Locating pin</text><text x="1260" y="935">2</text><text x="1430" y="935">Steel</text>

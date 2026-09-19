@@ -54,7 +54,17 @@ await writeFile(
 const svg = await readFile("public/samples/bracket-bom.svg", "utf8");
 const png = new Resvg(svg, {
   fitTo: { mode: "original" },
-  font: { defaultFontFamily: "Arial" },
+  // Use the locked PDF.js fonts, not OS font substitution. The downloadable
+  // sample must have identical lettering on developer machines and CI.
+  font: {
+    loadSystemFonts: false,
+    fontFiles: [
+      "node_modules/pdfjs-dist/standard_fonts/LiberationSans-Regular.ttf",
+      "node_modules/pdfjs-dist/standard_fonts/LiberationSans-Bold.ttf",
+    ],
+    defaultFontFamily: "Liberation Sans",
+    sansSerifFamily: "Liberation Sans",
+  },
 })
   .render()
   .asPng();

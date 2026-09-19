@@ -6,6 +6,7 @@ Self-review by the implementing agent; no independent-review claim.
 - `npm test`: 10 focused checks passed, including quoted/multiline CSV, spreadsheet injection, duplicate keys, decimal quantity precision, header geometry and table-rule preprocessing.
 - `npm run build`: three prerendered routes, self-hosted PDF/OCR assets and file hashes generated.
 - Browser suite: nine executed cases passed; six explicitly redundant desktop-only cases skipped on mobile. Desktop Chrome, mobile Chrome and mobile WebKit cover real PNG recognition and comparison. The PDF rendering/recognition, invalid file recovery, no-JavaScript HTML and cancellation recovery cases run on desktop.
+- The sample renderer loads the locked PDF.js Liberation Sans fonts and disables OS font discovery, so generated drawing lettering is consistent on macOS and Linux.
 - Synthetic sample: five part numbers and quantities extracted through real OCR, with no precomputed result. A changed quantity survives CSV export.
 - Checks observe page errors, browser-console errors, failed HTTP responses, unexpected network destinations and write methods. No document upload or external processing endpoint is used.
 - Mobile overflow found in Safari was fixed by containing off-screen table labels in the table's own scroll area. Touch inputs use a readable 16px font.
