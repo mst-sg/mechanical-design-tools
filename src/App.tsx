@@ -4,7 +4,10 @@ import { BomCheckTool } from "./BomCheckTool";
 import { TitleTool } from "./TitleTool";
 import { PidTool } from "./PidTool";
 import { tools } from "./catalog";
+import { useEffect, useState } from "react";
 export function App({ path }: { path: string }) {
+  const [ready, setReady] = useState(false);
+  useEffect(() => setReady(true), []);
   const drawing = path.endsWith("/drawing-to-bom"),
     compare = path.endsWith("/bom-compare");
   const active = tools.find((t) => path.endsWith("/" + t.slug));
@@ -63,16 +66,25 @@ export function App({ path }: { path: string }) {
             <small>No sign-in. No file upload.</small>
           </span>
         </div>
-        {drawing ? (
-          <DrawingToBom />
-        ) : compare ? (
-          <BomCompare />
-        ) : active?.slug === "bom-check" ? (
-          <BomCheckTool />
-        ) : active?.slug === "title-block-reader" ? (
-          <TitleTool />
-        ) : active?.slug === "pid-tag-check" ? (
-          <PidTool />
+        {active ? (
+          <fieldset
+            className="tool-body"
+            disabled={!ready}
+            aria-busy={!ready}
+            aria-label={`${active.name} controls`}
+          >
+            {drawing ? (
+              <DrawingToBom />
+            ) : compare ? (
+              <BomCompare />
+            ) : active.slug === "bom-check" ? (
+              <BomCheckTool />
+            ) : active.slug === "title-block-reader" ? (
+              <TitleTool />
+            ) : (
+              <PidTool />
+            )}
+          </fieldset>
         ) : (
           <ToolDirectory />
         )}
