@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.artifacts/
+playwright-report/
+test-results/
+.DS_Store
+public/vendor/
+public/THIRD_PARTY_NOTICES.txt
+public/samples/*.png
+public/samples/*.pdf
