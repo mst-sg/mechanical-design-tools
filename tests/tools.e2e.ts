@@ -147,6 +147,7 @@ test("user image/PDF paths and unsupported file recovery", async ({
   const errors = watch(page);
   await page.goto("/tools/drawing-to-bom/");
   const input = page.locator("input[type=file]");
+  await expect(input).toBeEnabled();
   await input.setInputFiles({
     name: "wrong.txt",
     mimeType: "text/plain",

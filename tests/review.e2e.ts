@@ -46,6 +46,8 @@ async function openTool(page: Page, path: string) {
   const started = Date.now();
   expect((await page.goto(path))?.status()).toBe(200);
   await expect(page.locator("h1")).toBeVisible();
+  // setInputFiles is programmatic and does not wait for an enabled control.
+  await expect(page.locator(".tool-body")).toBeEnabled();
   expect(Date.now() - started).toBeLessThan(
     process.env.MST_TOOLS_BASE_URL ? 10000 : 5000,
   );
