@@ -35,7 +35,7 @@ export async function loadImage(file: Blob, name: string): Promise<Drawing> {
 }
 export async function openPdf(file: File): Promise<PDFDocumentProxy> {
   const pdf = await import("pdfjs-dist");
-  pdf.GlobalWorkerOptions.workerSrc = "/tools/vendor/pdf.worker.min.mjs";
+  pdf.GlobalWorkerOptions.workerSrc = "/tools/vendor/pdf.worker.min.js";
   try {
     return await pdf.getDocument({
       data: new Uint8Array(await file.arrayBuffer()),

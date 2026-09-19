@@ -1,4 +1,4 @@
-import { cp, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { cp, mkdir, readdir, readFile, writeFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { Resvg } from "@resvg/resvg-js";
 import { PDFDocument } from "pdf-lib";
@@ -11,13 +11,16 @@ for (const [from, to] of [
   ],
   [
     "node_modules/pdfjs-dist/build/pdf.worker.min.mjs",
-    "public/vendor/pdf.worker.min.mjs",
+    "public/vendor/pdf.worker.min.js",
   ],
   ["node_modules/pdfjs-dist/cmaps", "public/vendor/cmaps"],
   ["node_modules/pdfjs-dist/standard_fonts", "public/vendor/standard_fonts"],
   ["node_modules/pdfjs-dist/wasm", "public/vendor/pdf-wasm"],
 ])
   await cp(from, to, { recursive: true });
+// The worker still runs as an ES module. A .js URL also works on static hosts
+// whose standard MIME table does not yet recognize .mjs.
+await rm("public/vendor/pdf.worker.min.mjs", { force: true });
 await mkdir("public/vendor/core", { recursive: true });
 for (const file of await readdir("node_modules/tesseract.js-core"))
   if (/^tesseract-core.*\.(?:js|wasm)$/.test(file))
