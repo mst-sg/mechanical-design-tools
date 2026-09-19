@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2000" height="1360" viewBox="0 0 2000 1360">
+<rect width="2000" height="1360" fill="white"/>
+<g fill="none" stroke="#303030" stroke-width="3"><rect x="30" y="30" width="1940" height="1300"/>
+<path d="M130 460V170h470l100 100v290H230zM130 170l100 100h470M230 270v290M130 460l100 100"/><path d="M230 430h470M590 270v290"/><ellipse cx="345" cy="353" rx="38" ry="47"/><ellipse cx="505" cy="353" rx="38" ry="47"/>
+<path d="M1020 220h630v250h-630zM1020 430h630M1080 220v250M1590 220v250"/><circle cx="1200" cy="340" r="32"/><circle cx="1470" cy="340" r="32"/>
+<path stroke="#777" stroke-dasharray="14 9" d="M1040 340h620M1200 190v320M1470 190v320"/>
+<path stroke="#777" d="M1020 535h630M1020 490v70M1650 490v70M1034 522l-14 13 14 13M1636 522l14 13-14 13"/>
+<rect x="70" y="710" width="1860" height="510"/><path d="M70 795h1860M70 880h1860M70 965h1860M70 1050h1860M70 1135h1860M210 710v510M620 710v510M1240 710v510M1400 710v510"/>
+</g>
+<g fill="#222" font-family="Liberation Sans,sans-serif"><text x="100" y="105" font-size="38" font-weight="bold">BRACKET ASSEMBLY</text><text x="100" y="630" font-size="27">ISOMETRIC VIEW</text><text x="1230" y="520" font-size="26">160 mm</text><text x="1050" y="630" font-size="27">FRONT VIEW · NOT TO SCALE</text>
+<g font-size="30" font-weight="bold"><text x="90" y="765">ITEM</text><text x="235" y="765">PART NUMBER</text><text x="650" y="765">DESCRIPTION</text><text x="1260" y="765">QTY</text><text x="1430" y="765">MATERIAL</text></g>
+<g font-size="30"><text x="90" y="850">1</text><text x="235" y="850">BRK-100</text><text x="650" y="850">Mounting bracket</text><text x="1260" y="850">1</text><text x="1430" y="850">Aluminium 6061</text>
+<text x="90" y="935">2</text><text x="235" y="935">PIN-020</text><text x="650" y="935">Locating pin</text><text x="1260" y="935">2</text><text x="1430" y="935">Steel</text>
+<text x="90" y="1020">3</text><text x="235" y="1020">SCR-M6</text><text x="650" y="1020">Socket head screw</text><text x="1260" y="1020">4</text><text x="1430" y="1020">Steel</text>
+<text x="90" y="1105">4</text><text x="235" y="1105">WSH-M6</text><text x="650" y="1105">Plain washer</text><text x="1260" y="1105">4</text><text x="1430" y="1105">Steel</text>
+<text x="90" y="1190">5</text><text x="235" y="1190">NUT-M6</text><text x="650" y="1190">Hex nut</text><text x="1260" y="1190">4</text><text x="1430" y="1190">Steel</text></g>
+<text x="80" y="1285" font-size="24">MST OPEN TOOLS · SYNTHETIC EXAMPLE · NOT FOR MANUFACTURE</text><text x="1660" y="1285" font-size="24">REV A / 1 OF 1</text></g></svg>
