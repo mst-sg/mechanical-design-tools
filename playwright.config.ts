@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+const external = process.env.MST_TOOLS_BASE_URL;
 export default defineConfig({
   testDir: "./tests",
   testMatch: "*.e2e.ts",
@@ -9,7 +10,7 @@ export default defineConfig({
   retries: 0,
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
-    baseURL: "http://127.0.0.1:4173",
+    baseURL: external || "http://127.0.0.1:4173",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
@@ -31,10 +32,12 @@ export default defineConfig({
     },
     { name: "mobile-webkit", use: { ...devices["iPhone 13"] } },
   ],
-  webServer: {
-    command: "npm run preview",
-    url: "http://127.0.0.1:4173/tools/",
-    reuseExistingServer: !process.env.CI,
-    timeout: 30000,
-  },
+  webServer: external
+    ? undefined
+    : {
+        command: "npm run preview",
+        url: "http://127.0.0.1:4173/tools/",
+        reuseExistingServer: !process.env.CI,
+        timeout: 30000,
+      },
 });

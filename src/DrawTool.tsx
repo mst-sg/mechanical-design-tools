@@ -536,6 +536,9 @@ export function DrawingToBom() {
         <a href="/tools/bom-compare/">
           Already have two BOM revisions? Compare them →
         </a>
+        <a href="/tools/bom-check/">
+          Check missing values and repeated parts →
+        </a>
       </section>
     </>
   );

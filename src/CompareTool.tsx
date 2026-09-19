@@ -355,6 +355,9 @@ export function BomCompare() {
         <a href="/tools/drawing-to-bom/">
           BOM still in a drawing? Extract the table first →
         </a>
+        <a href="/tools/bom-check/">
+          Review repeated parts and missing quantities →
+        </a>
       </section>
     </>
   );

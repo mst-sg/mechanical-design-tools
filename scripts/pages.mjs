@@ -3,27 +3,23 @@ import { mkdir, readFile, writeFile, readdir, stat } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 const template = await readFile("dist/index.html", "utf8");
-const pages = [
-  [
-    "",
-    "Free Mechanical Design Tools | MST",
-    "Free online tools for mechanical engineers. Extract an existing BOM from a drawing and compare BOM revisions, directly in your browser.",
-  ],
-  [
-    "drawing-to-bom",
-    "Drawing to BOM — Extract a Parts Table to CSV | MST",
-    "Extract an existing parts table from a PNG, JPEG or PDF drawing. Review editable BOM rows and export CSV. Free, private browser processing.",
-  ],
-  [
-    "bom-compare",
-    "BOM Compare — Compare Two Bills of Materials | MST",
-    "Compare two BOM CSV files by part number. Review added and removed parts, quantity changes, descriptions and materials. Free browser tool.",
-  ],
-];
 const server = await createServer({
   server: { middlewareMode: true },
   appType: "custom",
 });
+const { tools } = await server.ssrLoadModule("/src/catalog.ts");
+const pages = [
+  [
+    "",
+    "Free Mechanical Design Tools | MST",
+    "Free browser tools to extract BOMs, check data, compare revisions, read title blocks and reconcile P&ID tags.",
+  ],
+  ...tools.map((tool) => [
+    tool.slug,
+    `${tool.name} — Free Online Engineering Tool | MST`,
+    tool.description,
+  ]),
+];
 try {
   const { render } = await server.ssrLoadModule("/src/prerender.tsx");
   for (const [slug, title, description] of pages) {

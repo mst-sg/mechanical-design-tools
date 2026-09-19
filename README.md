@@ -2,10 +2,13 @@
 
 Free tools for mechanical engineers, used directly on [mst-us.ai](https://mst-us.ai/tools/).
 
-| Tool           | What it finishes                                                                | Online                                                        |
-| -------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| Drawing to BOM | Read an existing parts table from an image or PDF, edit the rows, export CSV    | [Use Drawing to BOM](https://mst-us.ai/tools/drawing-to-bom/) |
-| BOM Compare    | Compare two CSV revisions by part number, review changes, export the difference | [Use BOM Compare](https://mst-us.ai/tools/bom-compare/)       |
+| Tool               | What it finishes                                                                                               | Online                                                                |
+| ------------------ | -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| Drawing to BOM     | Read an existing parts table from an image or PDF, edit the rows, export CSV                                   | [Use Drawing to BOM](https://mst-us.ai/tools/drawing-to-bom/)         |
+| BOM Compare        | Compare two CSV revisions by part number, review changes, export the difference                                | [Use BOM Compare](https://mst-us.ai/tools/bom-compare/)               |
+| BOM Check          | Find missing values and conflicting or repeated parts, edit without losing custom columns, export reviewed CSV | [Use BOM Check](https://mst-us.ai/tools/bom-check/)                   |
+| Title Block Reader | Read labelled drawing fields, review sheets, export a drawing register                                         | [Use Title Block Reader](https://mst-us.ai/tools/title-block-reader/) |
+| P&ID Tag Check     | Read printed tags, correct the list and compare it with reference tags                                         | [Use P&ID Tag Check](https://mst-us.ai/tools/pid-tag-check/)          |
 
 No account, API key or installation is needed for the hosted tools. Source code is open under the MIT license.
 
@@ -24,6 +27,24 @@ English and Simplified Chinese recognition are available. Header mapping recogni
 Load or paste two CSV/TSV files with a header row. Map the part-number and quantity columns; description and material are optional. Matching uses exact, trimmed, **case-sensitive** part numbers. Item order is ignored.
 
 Duplicate or missing part numbers stop comparison. Quantities must be non-negative decimal numbers (at most 1 billion, with up to 6 decimal places), using a dot and no units or thousands separators. The tool does not convert units, aggregate duplicate rows or compare nested assembly structures. A changed part number appears as a removal and an addition. Formula-like exported cells are prefixed with an apostrophe for spreadsheet safety.
+
+## BOM Check
+
+Load a UTF-8 CSV/TSV (up to 4 MB, 10,000 data rows and 100 columns) and confirm the column mapping. Review missing values, invalid quantities, outer whitespace and repeated part numbers. All original columns, including units and revisions, stay editable and are retained in the export. Source row numbers refer to parsed data records after the header, not physical lines in a file with multiline cells. Formula-like cells are escaped in exports.
+
+Rows are never combined automatically. A preview adds quantities only when every other column matches after trimming, except the mapped item number. Different materials, units, revisions or custom fields block combining. Combining keeps the first item label; remove accidental duplicate rows instead of adding their quantities. Undo retains the last ten editing operations. The review checkbox permits export with unresolved values exactly as shown; it is not engineering approval. This is a flat-BOM data check, without unit conversion or assembly interpretation.
+
+## Title Block Reader
+
+Choose up to ten PNG/JPEG/PDF files (25 MB each, 100 MB total), select a PDF page and crop around its title block. Read drawing number, title, revision, material, scale and sheet labels, correct the fields, then add the reviewed sheet to a register. Export a CSV with source filenames and PDF page numbers. Files and pages are reviewed one at a time, not processed as an unattended batch. Export before refreshing or leaving.
+
+Suggestions require a recognizable English or Chinese label and its value on the same line. Repeated conflicting labels stay blank. Other layouts need manual entry after reading. OCR can confuse `O` and `0`, miss fields or include nearby text; every field needs source review. Title-block material is not the material of every part in an assembly.
+
+## P&ID Tag Check
+
+Read a cropped drawing and configure the letter prefixes used by your project. Check the suggested tags, add any missed occurrences and compare with a pasted list or a UTF-8 reference CSV containing one `Tag` column. Download the matched, drawing-only and reference-only tags, with occurrence counts. A manual list can also be used without OCR. Reference files are limited to 1 MB and 10,000 entries.
+
+This version supports tags such as `PT-101`, `P-002A` and `TK-12`: one letter prefix, one numeric sequence and an optional letter suffix. Leading zeros are preserved. Comparison normalizes letter case and spaces around hyphens. Split, rotated, symbol-enclosed and project-specific multipart tags may be missed or unsupported. Repeated symbols are counted as text occurrences, not equipment quantities. The tool checks the reviewed lists; it does not validate piping connections, process safety or physical layout.
 
 ## Privacy
 
@@ -50,7 +71,9 @@ npx playwright install chromium webkit
 npm run test:e2e
 ```
 
-CI verifies real image/PDF OCR, editable CSV output, revision differences, invalid input, desktop/mobile layout, JavaScript-free discovery, console errors and document-upload absence. Fixtures are synthetic and are not customer drawings. Passing these examples is not a benchmark of arbitrary drawing accuracy.
+CI verifies real image/PDF OCR, editable CSV output, revision differences, conservative BOM combining, drawing registers, exact tag reconciliation, cancellation and invalid input, desktop/mobile layout, JavaScript-free discovery and document-upload absence. Browser console failures are checked; known Tesseract diagnostics about tiny symbol fragments in the P&ID fixture are retained separately in evidence, with all expected tag values still asserted. Fixtures are synthetic and are not customer drawings. Passing these examples is not a benchmark of arbitrary drawing accuracy.
+
+To run the same browser verification against an existing release, set `MST_TOOLS_BASE_URL=https://mst-us.ai` before `npm run test:e2e`. These flows process synthetic files in the browser and download local CSVs; they do not submit customer data or create server records.
 
 ## Architecture and release
 

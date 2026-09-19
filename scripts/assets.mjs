@@ -84,3 +84,34 @@ await writeFile("public/samples/bracket-bom.pdf", await pdf.save());
 console.log(
   "Prepared self-hosted OCR/PDF assets, licenses and synthetic image/PDF samples.",
 );
+for (const name of ["title-block", "pid-tags"]) {
+  const source = await readFile(`public/samples/${name}.svg`, "utf8");
+  const bytes = new Resvg(source, {
+    font: {
+      loadSystemFonts: false,
+      fontFiles: [
+        "node_modules/pdfjs-dist/standard_fonts/LiberationSans-Regular.ttf",
+      ],
+      defaultFontFamily: "Liberation Sans",
+      sansSerifFamily: "Liberation Sans",
+    },
+  })
+    .render()
+    .asPng();
+  await writeFile(`public/samples/${name}.png`, bytes);
+  const doc = await PDFDocument.create();
+  doc.setTitle(`Synthetic ${name} OCR example`);
+  doc.setAuthor("MST Open Tools");
+  doc.setCreationDate(new Date("2026-09-19T00:00:00Z"));
+  doc.setModificationDate(new Date("2026-09-19T00:00:00Z"));
+  const raster = await doc.embedPng(bytes);
+  doc
+    .addPage([raster.width, raster.height])
+    .drawImage(raster, {
+      x: 0,
+      y: 0,
+      width: raster.width,
+      height: raster.height,
+    });
+  await writeFile(`public/samples/${name}.pdf`, await doc.save());
+}
