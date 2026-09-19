@@ -1,8 +1,13 @@
 import { DrawingToBom } from "./DrawTool";
 import { BomCompare } from "./CompareTool";
+import { BomCheckTool } from "./BomCheckTool";
+import { TitleTool } from "./TitleTool";
+import { PidTool } from "./PidTool";
+import { tools } from "./catalog";
 export function App({ path }: { path: string }) {
   const drawing = path.endsWith("/drawing-to-bom"),
     compare = path.endsWith("/bom-compare");
+  const active = tools.find((t) => path.endsWith("/" + t.slug));
   return (
     <>
       <a className="skip-link" href="#main">
@@ -46,19 +51,10 @@ export function App({ path }: { path: string }) {
             <a className="breadcrumb" href="/tools/">
               FREE TOOLS
             </a>
-            <h1>
-              {drawing
-                ? "Drawing to BOM"
-                : compare
-                  ? "BOM Compare"
-                  : "Small tools. Useful engineering work."}
-            </h1>
+            <h1>{active?.name || "Small tools. Useful engineering work."}</h1>
             <p>
-              {drawing
-                ? "Turn a drawing’s parts table into an editable spreadsheet."
-                : compare
-                  ? "See what changed between two bills of materials."
-                  : "Extract a parts list. Check a revision. Get back to designing."}
+              {active?.subtitle ||
+                "Extract a parts list. Review drawing data. Get back to designing."}
             </p>
           </div>
           <span className="local-note">
@@ -71,6 +67,12 @@ export function App({ path }: { path: string }) {
           <DrawingToBom />
         ) : compare ? (
           <BomCompare />
+        ) : active?.slug === "bom-check" ? (
+          <BomCheckTool />
+        ) : active?.slug === "title-block-reader" ? (
+          <TitleTool />
+        ) : active?.slug === "pid-tag-check" ? (
+          <PidTool />
         ) : (
           <ToolDirectory />
         )}
@@ -105,45 +107,23 @@ function ToolDirectory() {
   return (
     <>
       <div className="directory">
-        <a className="tool-entry" href="/tools/drawing-to-bom/">
-          <span className="tool-drawing" aria-hidden="true">
-            <svg viewBox="0 0 380 170">
-              <g fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M35 110V45h70l35 30v65H70zM35 45l35 30h70M70 75v65" />
-                <circle cx="102" cy="108" r="12" />
-                <path d="M175 85h30m-9-7 9 7-9 7M235 35h120v110H235zM235 65h120M235 95h120M235 120h120M273 35v110" />
-              </g>
-            </svg>
-          </span>
-          <span className="eyebrow">DRAWING → SPREADSHEET</span>
-          <h2>
-            Drawing to BOM <span>↗</span>
-          </h2>
-          <p>
-            Read a printed BOM from a PNG, JPEG or PDF. Check the rows, make
-            corrections and export CSV.
-          </p>
-          <strong>Open tool →</strong>
-        </a>
-        <a className="tool-entry" href="/tools/bom-compare/">
-          <span className="tool-drawing" aria-hidden="true">
-            <svg viewBox="0 0 380 170">
-              <g fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M45 30h120v110H45zM215 30h120v110H215zM45 58h120M45 88h120M45 116h120M215 58h120M215 88h120M215 116h120M177 85h26m-8-7 8 7-8 7" />
-                <path stroke="#ad4f27" d="M228 72h90M228 102h90" />
-              </g>
-            </svg>
-          </span>
-          <span className="eyebrow">REVISION A → REVISION B</span>
-          <h2>
-            BOM Compare <span>↗</span>
-          </h2>
-          <p>
-            Compare two CSVs by part number. Find added and removed parts,
-            quantity changes and material updates.
-          </p>
-          <strong>Open tool →</strong>
-        </a>
+        {tools.map((tool, index) => (
+          <a
+            className="tool-entry"
+            href={`/tools/${tool.slug}/`}
+            key={tool.slug}
+          >
+            <span className="tool-drawing" aria-hidden="true">
+              <ToolSketch index={index} />
+            </span>
+            <span className="eyebrow">{tool.eyebrow}</span>
+            <h2>
+              {tool.name} <span>↗</span>
+            </h2>
+            <p>{tool.description}</p>
+            <strong>Open tool →</strong>
+          </a>
+        ))}
       </div>
       <section className="guide">
         <h2>More drawing tools</h2>
@@ -165,5 +145,29 @@ function ToolDirectory() {
         </p>
       </section>
     </>
+  );
+}
+
+function ToolSketch({ index }: { index: number }) {
+  const paths = [
+    "M35 110V45h70l35 30v65H70zM35 45l35 30h70M70 75v65M175 85h30m-9-7 9 7-9 7M235 35h120v110H235zM235 65h120M235 95h120M235 120h120M273 35v110",
+    "M45 25h210v120H45zM45 58h210M45 88h210M45 118h210M88 25v120M172 25v120M278 77l19 19 42-46",
+    "M45 30h120v110H45zM215 30h120v110H215zM45 58h120M45 88h120M45 116h120M215 58h120M215 88h120M215 116h120M177 85h26m-8-7 8 7-8 7",
+    "M35 20h210v130H35zM35 105h210M118 105v45M180 105v45M60 45h90M60 58h120M266 55h80M266 77h80M266 99h80M266 121h50",
+    "M30 85h70M140 85h85M275 85h70M120 65v-30M250 65v-30M90 115h60M220 115h60",
+  ];
+  return (
+    <svg viewBox="0 0 380 170">
+      <g fill="none" stroke="currentColor" strokeWidth="2">
+        <path d={paths[index]} />
+        {index === 4 && (
+          <>
+            <circle cx="120" cy="85" r="22" />
+            <circle cx="250" cy="85" r="22" />
+            <path stroke="#a63d1b" d="M305 127l12 12 27-27" />
+          </>
+        )}
+      </g>
+    </svg>
   );
 }

@@ -22,7 +22,7 @@ export function wordsFromTsv(tsv: string): Word[] {
       [w.x, w.y, w.width, w.height, w.confidence].every(Number.isFinite),
     );
 }
-function linesFromWords(words: Word[]): Word[][] {
+export function linesFromWords(words: Word[]): Word[][] {
   const sorted = [...words].sort(
     (a, b) => a.y + a.height / 2 - (b.y + b.height / 2),
   );

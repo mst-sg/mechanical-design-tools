@@ -1,13 +1,31 @@
 import { createWorker, PSM } from "tesseract.js";
 import type { Crop } from "./types";
 import { removeTableRules } from "./preprocess";
-import { wordsFromTsv, extractTable } from "./ocr-table";
+import { wordsFromTsv, extractTable, linesFromWords } from "./ocr-table";
 export async function recognizeDrawing(
   url: string,
   crop: Crop,
   language: string,
   signal: AbortSignal,
   onProgress: (message: string, value: number) => void,
+) {
+  const data = await recognizeText(
+    url,
+    crop,
+    language,
+    signal,
+    onProgress,
+    "table",
+  );
+  return { ...extractTable(wordsFromTsv(data.tsv ?? "")), text: data.text };
+}
+export async function recognizeText(
+  url: string,
+  crop: Crop,
+  language: string,
+  signal: AbortSignal,
+  onProgress: (message: string, value: number) => void,
+  mode: "table" | "text" | "tags" = "text",
 ) {
   const image = new Image();
   image.src = url;
@@ -18,14 +36,30 @@ export async function recognizeDrawing(
     y = Math.round((image.height * crop.top) / 100),
     w = Math.max(1, Math.round((image.width * crop.width) / 100)),
     h = Math.max(1, Math.round((image.height * crop.height) / 100));
-  canvas.width = w;
-  canvas.height = h;
+  const scale =
+    mode !== "table"
+      ? Math.max(
+          1,
+          Math.min(2, 3200 / w, 3200 / h, Math.sqrt(8_000_000 / (w * h))),
+        )
+      : 1;
+  canvas.width = Math.round(w * scale);
+  canvas.height = Math.round(h * scale);
   const ctx = canvas.getContext("2d")!;
   ctx.fillStyle = "white";
-  ctx.fillRect(0, 0, w, h);
-  ctx.drawImage(image, x, y, w, h, 0, 0, w, h);
-  const pixels = ctx.getImageData(0, 0, w, h);
-  removeTableRules(pixels.data, w, h);
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(image, x, y, w, h, 0, 0, canvas.width, canvas.height);
+  const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  if (mode !== "table") {
+    for (let i = 0; i < pixels.data.length; i += 4) {
+      const value =
+        (pixels.data[i] + pixels.data[i + 1] + pixels.data[i + 2]) / 3 < 200
+          ? 0
+          : 255;
+      pixels.data[i] = pixels.data[i + 1] = pixels.data[i + 2] = value;
+    }
+  }
+  removeTableRules(pixels.data, canvas.width, canvas.height);
   ctx.putImageData(pixels, 0, 0);
   onProgress("Loading recognition engine…", 0);
   let rejectCancel: ((reason: Error) => void) | undefined;
@@ -47,7 +81,9 @@ export async function recognizeDrawing(
         if (!signal.aborted)
           onProgress(
             info.status === "recognizing text"
-              ? "Reading the parts table…"
+              ? mode === "table"
+                ? "Reading the parts table…"
+                : "Reading printed text…"
               : "Loading recognition engine…",
             info.status === "recognizing text" ? info.progress : 0,
           );
@@ -65,14 +101,24 @@ export async function recognizeDrawing(
   try {
     worker = await Promise.race([ready, cancelled]);
     await worker.setParameters({
-      tessedit_pageseg_mode: PSM.SINGLE_BLOCK,
+      // The block pass retains tag labels near symbols that sparse segmentation
+      // can discard. Title fields use sparse segmentation plus word positions.
+      tessedit_pageseg_mode:
+        mode === "text" ? PSM.SPARSE_TEXT : PSM.SINGLE_BLOCK,
       preserve_interword_spaces: "1",
+      user_defined_dpi: "300",
     });
     const { data } = await Promise.race([
       worker.recognize(canvas, {}, { text: true, tsv: true }),
       cancelled,
     ]);
-    return { ...extractTable(wordsFromTsv(data.tsv ?? "")), text: data.text };
+    return {
+      text: data.text,
+      tsv: data.tsv ?? "",
+      layoutText: linesFromWords(wordsFromTsv(data.tsv ?? ""))
+        .map((line) => line.map((w) => w.text).join(" "))
+        .join("\n"),
+    };
   } finally {
     signal.removeEventListener("abort", onAbort);
     if (worker) await worker.terminate();

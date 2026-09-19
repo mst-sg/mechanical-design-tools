@@ -2,6 +2,9 @@ import { test, expect, type Page } from "@playwright/test";
 import { readFile, mkdir } from "node:fs/promises";
 import { parseCsv } from "../src/csv";
 function watch(page: Page) {
+  const origin = new URL(
+    process.env.MST_TOOLS_BASE_URL || "http://127.0.0.1:4173",
+  ).origin;
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   page.on("console", (m) => {
@@ -9,7 +12,7 @@ function watch(page: Page) {
   });
   page.on("request", (r) => {
     if (
-      !r.url().startsWith("http://127.0.0.1:4173") &&
+      !r.url().startsWith(origin + "/") &&
       !r.url().startsWith("blob:") &&
       !r.url().startsWith("data:")
     )
@@ -47,7 +50,9 @@ test("on-site directory, dropdown, mapping, comparison, download and invalid inp
   await expect(page.getByRole("heading", { level: 1 })).toContainText(
     "Small tools",
   );
-  expect(Date.now() - started).toBeLessThan(5000);
+  expect(Date.now() - started).toBeLessThan(
+    process.env.MST_TOOLS_BASE_URL ? 10000 : 5000,
+  );
   await page.locator("header summary").click();
   await page
     .locator("header")
@@ -172,7 +177,11 @@ test("canonical HTML and useful tool content without JavaScript", async ({
   const context = await browser.newContext({ javaScriptEnabled: false });
   const page = await context.newPage();
   for (const slug of ["", "drawing-to-bom/", "bom-compare/"]) {
-    const response = await page.goto("http://127.0.0.1:4173/tools/" + slug);
+    const response = await page.goto(
+      (process.env.MST_TOOLS_BASE_URL || "http://127.0.0.1:4173") +
+        "/tools/" +
+        slug,
+    );
     expect(response?.status()).toBe(200);
     await expect(page.locator("h1")).toHaveCount(1);
     await expect(page.locator("link[rel=canonical]")).toHaveAttribute(
