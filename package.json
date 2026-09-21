@@ -1,6 +1,6 @@
 {
   "name": "mst-mechanical-design-tools",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -19,7 +19,8 @@
     "pdfjs-dist": "6.3.289",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "tesseract.js": "7.0.0"
+    "tesseract.js": "7.0.0",
+    "wasm-feature-detect": "1.9.0"
   },
   "devDependencies": {
     "@playwright/test": "1.62.1",
