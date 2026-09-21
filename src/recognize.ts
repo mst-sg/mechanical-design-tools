@@ -2,6 +2,7 @@ import { createWorker, PSM } from "tesseract.js";
 import type { Crop } from "./types";
 import { removeTableRules } from "./preprocess";
 import { wordsFromTsv, extractTable, linesFromWords } from "./ocr-table";
+import { prepareOcrCore } from "./ocr-core";
 export async function recognizeDrawing(
   url: string,
   crop: Crop,
@@ -61,6 +62,8 @@ export async function recognizeText(
   }
   removeTableRules(pixels.data, canvas.width, canvas.height);
   ctx.putImageData(pixels, 0, 0);
+  const corePath = await prepareOcrCore(signal, onProgress);
+  if (signal.aborted) throw new DOMException("Cancelled", "AbortError");
   onProgress("Loading recognition engine…", 0);
   let rejectCancel: ((reason: Error) => void) | undefined;
   const cancelled = new Promise<never>((_, reject) => {
@@ -74,7 +77,7 @@ export async function recognizeText(
     1,
     {
       workerPath: "/tools/vendor/worker.min.js",
-      corePath: "/tools/vendor/core",
+      corePath,
       langPath: "/tools/vendor/lang",
       cacheMethod: "none",
       logger: (info) => {
