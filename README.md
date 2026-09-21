@@ -4,13 +4,20 @@ Free tools for mechanical engineers, used directly on [mst-us.ai](https://mst-us
 
 | Tool               | What it finishes                                                                                               | Online                                                                |
 | ------------------ | -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| Drawing to BOM     | Read an existing parts table from an image or PDF, edit the rows, export CSV                                   | [Use Drawing to BOM](https://mst-us.ai/tools/drawing-to-bom/)         |
+| P&ID Tag Check     | Read printed tags, correct the list and compare it with reference tags                                         | [Use P&ID Tag Check](https://mst-us.ai/tools/pid-tag-check/)          |
 | BOM Compare        | Compare two CSV revisions by part number, review changes, export the difference                                | [Use BOM Compare](https://mst-us.ai/tools/bom-compare/)               |
+| Drawing to BOM     | Read an existing parts table from an image or PDF, edit the rows, export CSV                                   | [Use Drawing to BOM](https://mst-us.ai/tools/drawing-to-bom/)         |
 | BOM Check          | Find missing values and conflicting or repeated parts, edit without losing custom columns, export reviewed CSV | [Use BOM Check](https://mst-us.ai/tools/bom-check/)                   |
 | Title Block Reader | Read labelled drawing fields, review sheets, export a drawing register                                         | [Use Title Block Reader](https://mst-us.ai/tools/title-block-reader/) |
-| P&ID Tag Check     | Read printed tags, correct the list and compare it with reference tags                                         | [Use P&ID Tag Check](https://mst-us.ai/tools/pid-tag-check/)          |
 
 No account, API key or installation is needed for the hosted tools. Source code is open under the MIT license.
+
+## Start with a worked example
+
+- **P&ID list reconciliation:** in [P&ID Tag Check](https://mst-us.ai/tools/pid-tag-check/#pid-example), select **Try a sample**, then **Read text**. Review the tags against the drawing and confirm the checkbox. Select **Use sample reference**, then **Compare tags**. Expect three identifiers on both lists, `XV-104` only in the drawing and `TT-103` only in the reference. `PT-101` appears twice on the drawing and once in the reference; these are printed occurrences, not equipment quantities. Export the comparison to inspect the complete result.
+- **BOM revision review:** in [BOM Compare](https://mst-us.ai/tools/bom-compare/#bom-example), select **Try sample revisions**, or download [revision A](https://mst-us.ai/tools/samples/bom-revision-a.csv) and [revision B](https://mst-us.ai/tools/samples/bom-revision-b.csv) and open them in the corresponding inputs. Confirm the column mapping and select **Compare BOMs**. Expect one added part, one removed part, two changed parts (material and quantity), and one unchanged part. Export the CSV to review all differences.
+
+Both examples use synthetic data. Their illustrated guides describe expected findings; the tool computes actual results from the reviewed inputs. They are not customer cases or general-accuracy benchmarks.
 
 ## Drawing to BOM
 

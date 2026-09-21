@@ -1,5 +1,22 @@
 export const tools = [
   {
+    slug: "pid-tag-check",
+    name: "P&ID Tag Check",
+    eyebrow: "PRINTED TAGS → LIST COMPARISON",
+    description:
+      "Read and review tag text, then compare it with your equipment or instrument list. Export unmatched tags.",
+    subtitle:
+      "Compare reviewed P&ID tags with an equipment or instrument list.",
+  },
+  {
+    slug: "bom-compare",
+    name: "BOM Compare",
+    eyebrow: "REVISION A → REVISION B",
+    description:
+      "Compare two CSVs by part number. Find added and removed parts, quantity changes and material updates.",
+    subtitle: "See what changed between two bills of materials.",
+  },
+  {
     slug: "drawing-to-bom",
     name: "Drawing to BOM",
     eyebrow: "DRAWING → SPREADSHEET",
@@ -17,14 +34,6 @@ export const tools = [
       "Find missing values, repeated parts and conflicting data before reusing a BOM.",
   },
   {
-    slug: "bom-compare",
-    name: "BOM Compare",
-    eyebrow: "REVISION A → REVISION B",
-    description:
-      "Compare two CSVs by part number. Find added and removed parts, quantity changes and material updates.",
-    subtitle: "See what changed between two bills of materials.",
-  },
-  {
     slug: "title-block-reader",
     name: "Title Block Reader",
     eyebrow: "DRAWING SHEETS → REGISTER",
@@ -32,14 +41,5 @@ export const tools = [
       "Read drawing numbers, titles and revisions. Check each sheet and export a drawing register.",
     subtitle:
       "Turn printed title-block information into a reviewed drawing register.",
-  },
-  {
-    slug: "pid-tag-check",
-    name: "P&ID Tag Check",
-    eyebrow: "PRINTED TAGS → LIST COMPARISON",
-    description:
-      "Read and review tag text, then compare it with your equipment or instrument list. Export unmatched tags.",
-    subtitle:
-      "Compare reviewed P&ID tags with an equipment or instrument list.",
   },
 ];

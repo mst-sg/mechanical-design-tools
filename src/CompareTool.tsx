@@ -102,13 +102,18 @@ export function BomCompare() {
           Match revisions by part number. See what changed before updating an
           assembly.
         </p>
-        <button
-          className="button secondary"
-          onClick={sample}
-          disabled={loading}
-        >
-          Try sample revisions
-        </button>
+        <div className="row-actions">
+          <a className="example-jump" href="#bom-example">
+            See the worked example ↓
+          </a>
+          <button
+            className="button secondary"
+            onClick={sample}
+            disabled={loading}
+          >
+            Try sample revisions
+          </button>
+        </div>
       </div>
       <div className="revision-grid">
         {(["before", "after"] as const).map((side, i) => {
@@ -338,8 +343,102 @@ export function BomCompare() {
           )}
         </section>
       )}
-      <section className="guide">
-        <h2>Check a revision before replacing parts</h2>
+      <section
+        className="guide worked-example"
+        id="bom-example"
+        aria-labelledby="bom-example-title"
+      >
+        <span className="eyebrow">SYNTHETIC WORKED EXAMPLE</span>
+        <h2 id="bom-example-title">
+          What changed in this bracket assembly’s parts list?
+        </h2>
+        <p>
+          Two flat BOM revisions, four rows each. These are the expected
+          findings from the sample, not results from your files.
+        </p>
+        <div
+          className="table-scroll example-table"
+          role="region"
+          aria-label="Sample BOM revision guide"
+          tabIndex={0}
+        >
+          <table>
+            <caption>Revision A → Revision B · expected comparison</caption>
+            <thead>
+              <tr>
+                <th scope="col">Part number</th>
+                <th scope="col">Revision A</th>
+                <th scope="col">Revision B</th>
+                <th scope="col">Finding</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">BRK-100</th>
+                <td>1 · Aluminium 6061</td>
+                <td>1 · Aluminium 6061</td>
+                <td>
+                  <span className="status unchanged">Unchanged</span>
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">PIN-020</th>
+                <td>2 · Steel</td>
+                <td>2 · Stainless steel</td>
+                <td>
+                  <span className="status changed">Material changed</span>
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">SCR-M6</th>
+                <td>4 · Steel</td>
+                <td>6 · Steel</td>
+                <td>
+                  <span className="status changed">Quantity +2</span>
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">WSH-M6</th>
+                <td>4 · Steel</td>
+                <td>Not present</td>
+                <td>
+                  <span className="status removed">Removed</span>
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">NUT-M6</th>
+                <td>Not present</td>
+                <td>6 · Steel</td>
+                <td>
+                  <span className="status added">Added</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <ol>
+          <li>
+            <strong>Load both revisions.</strong> Choose Try sample revisions
+            above, or download the two CSVs and open them with Choose CSV.
+          </li>
+          <li>
+            <strong>Check the column mapping.</strong> Confirm part number,
+            quantity, description and material. Select Compare BOMs.
+          </li>
+          <li>
+            <strong>Review and export.</strong> Expect 1 added, 1 removed, 2
+            changed and 1 unchanged part. Export the full comparison as CSV.
+          </li>
+        </ol>
+        <div className="related-links">
+          <a href="/tools/samples/bom-revision-a.csv" download>
+            Download revision A CSV ↓
+          </a>
+          <a href="/tools/samples/bom-revision-b.csv" download>
+            Download revision B CSV ↓
+          </a>
+        </div>
+        <h3>Check a revision before replacing parts</h3>
         <p>
           Export each BOM as CSV UTF-8 from your spreadsheet or CAD/PDM system.
           Map the part number and quantity columns, then compare. Description
@@ -357,6 +456,9 @@ export function BomCompare() {
         </a>
         <a href="/tools/bom-check/">
           Review repeated parts and missing quantities →
+        </a>
+        <a href="https://mst-us.ai/pid-bom-pdm-handoff-to-solidworks/">
+          Preparing P&ID, BOM and model data for an assembly workflow →
         </a>
       </section>
     </>

@@ -12,7 +12,7 @@ import { readUtf8 } from "./text-file";
 const sample = {
   url: "/tools/samples/pid-tags.png",
   name: "Synthetic pump loop P&ID.png",
-  crop: { left: 2, top: 10, width: 96, height: 80 },
+  crop: { left: 0, top: 0, width: 100, height: 100 },
 };
 export function PidTool() {
   const [prefixes, setPrefixes] = useState(defaultPrefixes),
@@ -71,6 +71,16 @@ export function PidTool() {
     result?.filter((r) => filter === "All" || r.status === filter) || [];
   return (
     <>
+      <div className="compare-toolbar">
+        <p>
+          First visit? Choose <strong>Try a sample</strong>, then{" "}
+          <strong>Read text</strong>. Review the tags and compare with the
+          sample reference.
+        </p>
+        <a className="example-jump" href="#pid-example">
+          See the worked example ↓
+        </a>
+      </div>
       <div className="workspace">
         <div className="reader-stack">
           <div className="panel">
@@ -319,20 +329,71 @@ export function PidTool() {
           )}
         </section>
       )}
-      <section className="guide">
-        <h2>Reconcile printed tags with an equipment or instrument list</h2>
+      <section
+        className="guide worked-example"
+        id="pid-example"
+        aria-labelledby="pid-example-title"
+      >
+        <span className="eyebrow">SYNTHETIC WORKED EXAMPLE</span>
+        <h2 id="pid-example-title">
+          Does this P&ID agree with the instrument list?
+        </h2>
+        <div className="example-grid">
+          <figure className="example-figure">
+            <a href="/tools/samples/pid-tags.png">
+              <img
+                src="/tools/samples/pid-tags.svg"
+                width="1500"
+                height="850"
+                loading="lazy"
+                alt="Synthetic pump loop showing P-101, FT-102, XV-104 and two printed occurrences of PT-101."
+              />
+            </a>
+            <figcaption>
+              Use the actual sample drawing in the reader above. Open the image
+              to inspect it at full size.
+            </figcaption>
+          </figure>
+          <div className="example-findings">
+            <h3>Expected findings after source review</h3>
+            <dl>
+              <div>
+                <dt>Only in drawing</dt>
+                <dd>
+                  <strong>XV-104</strong> — check whether the reference list is
+                  missing an entry.
+                </dd>
+              </div>
+              <div>
+                <dt>Only in list</dt>
+                <dd>
+                  <strong>TT-103</strong> — check whether it belongs on this
+                  drawing or a different sheet.
+                </dd>
+              </div>
+              <div>
+                <dt>On both lists</dt>
+                <dd>
+                  <strong>P-101, PT-101, FT-102</strong>. PT-101 appears twice
+                  on the drawing and once in the list.
+                </dd>
+              </div>
+            </dl>
+          </div>
+        </div>
         <ol>
           <li>
-            <strong>Read a crop.</strong> Choose prefixes used by your project
-            and read the required P&ID page.
+            <strong>Read the sample.</strong> Choose Try a sample, then Read
+            text. Check the suggested tags against the drawing; correct or add
+            any missed occurrences.
           </li>
           <li>
-            <strong>Review the tags.</strong> Check every suggested tag and add
-            ones missed by OCR.
+            <strong>Confirm and compare.</strong> Tick the source-review
+            checkbox, choose Use sample reference, then Compare tags.
           </li>
           <li>
-            <strong>Compare lists.</strong> Look for items present on only one
-            side and check their source.
+            <strong>Review the differences.</strong> Check the two unmatched
+            tags and the repeated PT-101, then export the comparison as CSV.
           </li>
         </ol>
         <div className="related-links">
@@ -342,16 +403,29 @@ export function PidTool() {
           <a href="/tools/samples/pid-reference.csv" download>
             Download reference CSV ↓
           </a>
+        </div>
+        <h3>What does a match tell you?</h3>
+        <p>
+          Matched means the identifier is present on both reviewed lists, even
+          when occurrence counts differ. A repeated printed tag is not
+          necessarily a duplicate piece of equipment. Unmatched tags are review
+          candidates; this tool does not validate connections, process safety,
+          equipment counts or physical layout.
+        </p>
+        <p>
+          For your own drawing, set the prefixes used by your project and select
+          the required page and crop. OCR can miss tags inside symbols or with
+          split labels. Check every suggestion and add missing tags before
+          comparing.
+        </p>
+        <div className="related-links">
+          <a href="https://mst-us.ai/pid-understanding-is-not-ocr/">
+            Why reading tags is only part of understanding a P&ID →
+          </a>
           <a href="/tools/title-block-reader/">
             Read drawing numbers and revisions →
           </a>
         </div>
-        <p>
-          This checks tag text in the reviewed lists. OCR can miss tags inside
-          symbols or with split labels. Unmatched tags are review candidates;
-          this tool does not validate connections, process safety, equipment
-          counts or physical layout.
-        </p>
       </section>
     </>
   );
