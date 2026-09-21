@@ -53,6 +53,12 @@ test("on-site directory, dropdown, mapping, comparison, download and invalid inp
   expect(Date.now() - started).toBeLessThan(
     process.env.MST_TOOLS_BASE_URL ? 10000 : 5000,
   );
+  await expect(page.locator(".tool-entry h2").nth(0)).toContainText(
+    "P&ID Tag Check",
+  );
+  await expect(page.locator(".tool-entry h2").nth(1)).toContainText(
+    "BOM Compare",
+  );
   await page.locator("header summary").click();
   await page
     .locator("header")
@@ -60,6 +66,28 @@ test("on-site directory, dropdown, mapping, comparison, download and invalid inp
     .click();
   await expect(page).toHaveURL(/\/tools\/bom-compare\//);
   await page.getByRole("button", { name: "Try sample revisions" }).click();
+  for (const [side, revision] of [
+    ["Before", "A"],
+    ["After", "B"],
+  ] as const) {
+    const sampleText = await page
+      .getByLabel(`${side} CSV text`, { exact: true })
+      .inputValue();
+    const downloaded = page.waitForEvent("download");
+    await page
+      .getByRole("link", { name: `Download revision ${revision} CSV` })
+      .press("Enter");
+    const path = (await (await downloaded).path())!;
+    const fileText = await readFile(path, "utf8");
+    expect(fileText.trim()).toBe(sampleText.trim());
+    await page.getByLabel(`${side} CSV text`, { exact: true }).fill("");
+    await page
+      .getByLabel(`${side} CSV file`, { exact: true })
+      .setInputFiles(path);
+    await expect(
+      page.getByLabel(`${side} CSV text`, { exact: true }),
+    ).toHaveValue(fileText);
+  }
   await page.getByRole("button", { name: "Compare BOMs" }).click();
   await expect(
     page.getByRole("button", { name: "Added 1", exact: true }),
@@ -192,6 +220,17 @@ test("canonical HTML and useful tool content without JavaScript", async ({
     await expect(page.locator("main")).toContainText(
       slug ? "CSV" : "Small tools",
     );
+    if (slug === "bom-compare/") {
+      await expect(
+        page.getByRole("heading", { name: /What changed in this bracket/ }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("link", { name: "Download revision A CSV" }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("link", { name: "Download revision B CSV" }),
+      ).toBeVisible();
+    }
   }
   await context.close();
 });

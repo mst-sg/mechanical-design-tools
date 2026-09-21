@@ -29,7 +29,7 @@ export function App({ path }: { path: string }) {
                 Free Tools <span aria-hidden="true">⌄</span>
               </summary>
               <div className="tool-menu">
-                <a href="/tools/drawing-to-bom/">Drawing to BOM</a>
+                <a href="/tools/pid-tag-check/">P&ID Tag Check</a>
                 <a href="/tools/bom-compare/">BOM Compare</a>
                 <a href="/tools/">All free tools</a>
               </div>
@@ -57,7 +57,7 @@ export function App({ path }: { path: string }) {
             <h1>{active?.name || "Small tools. Useful engineering work."}</h1>
             <p>
               {active?.subtitle ||
-                "Extract a parts list. Review drawing data. Get back to designing."}
+                "Check P&ID tags. Compare BOM revisions. Review drawing data."}
             </p>
           </div>
           <span className="local-note">
@@ -119,14 +119,14 @@ function ToolDirectory() {
   return (
     <>
       <div className="directory">
-        {tools.map((tool, index) => (
+        {tools.map((tool) => (
           <a
             className="tool-entry"
             href={`/tools/${tool.slug}/`}
             key={tool.slug}
           >
             <span className="tool-drawing" aria-hidden="true">
-              <ToolSketch index={index} />
+              <ToolSketch slug={tool.slug} />
             </span>
             <span className="eyebrow">{tool.eyebrow}</span>
             <h2>
@@ -160,19 +160,24 @@ function ToolDirectory() {
   );
 }
 
-function ToolSketch({ index }: { index: number }) {
-  const paths = [
-    "M35 110V45h70l35 30v65H70zM35 45l35 30h70M70 75v65M175 85h30m-9-7 9 7-9 7M235 35h120v110H235zM235 65h120M235 95h120M235 120h120M273 35v110",
-    "M45 25h210v120H45zM45 58h210M45 88h210M45 118h210M88 25v120M172 25v120M278 77l19 19 42-46",
-    "M45 30h120v110H45zM215 30h120v110H215zM45 58h120M45 88h120M45 116h120M215 58h120M215 88h120M215 116h120M177 85h26m-8-7 8 7-8 7",
-    "M35 20h210v130H35zM35 105h210M118 105v45M180 105v45M60 45h90M60 58h120M266 55h80M266 77h80M266 99h80M266 121h50",
-    "M30 85h70M140 85h85M275 85h70M120 65v-30M250 65v-30M90 115h60M220 115h60",
-  ];
+function ToolSketch({ slug }: { slug: string }) {
+  const paths: Record<string, string> = {
+    "drawing-to-bom":
+      "M35 110V45h70l35 30v65H70zM35 45l35 30h70M70 75v65M175 85h30m-9-7 9 7-9 7M235 35h120v110H235zM235 65h120M235 95h120M235 120h120M273 35v110",
+    "bom-check":
+      "M45 25h210v120H45zM45 58h210M45 88h210M45 118h210M88 25v120M172 25v120M278 77l19 19 42-46",
+    "bom-compare":
+      "M45 30h120v110H45zM215 30h120v110H215zM45 58h120M45 88h120M45 116h120M215 58h120M215 88h120M215 116h120M177 85h26m-8-7 8 7-8 7",
+    "title-block-reader":
+      "M35 20h210v130H35zM35 105h210M118 105v45M180 105v45M60 45h90M60 58h120M266 55h80M266 77h80M266 99h80M266 121h50",
+    "pid-tag-check":
+      "M30 85h70M140 85h85M275 85h70M120 65v-30M250 65v-30M90 115h60M220 115h60",
+  };
   return (
     <svg viewBox="0 0 380 170">
       <g fill="none" stroke="currentColor" strokeWidth="2">
-        <path d={paths[index]} />
-        {index === 4 && (
+        <path d={paths[slug]} />
+        {slug === "pid-tag-check" && (
           <>
             <circle cx="120" cy="85" r="22" />
             <circle cx="250" cy="85" r="22" />

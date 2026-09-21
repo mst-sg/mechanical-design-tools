@@ -829,6 +829,83 @@ pre {
   width: 100%;
   padding: 6px;
 }
+.example-jump {
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 600;
+  flex-shrink: 0;
+  padding: 10px 0;
+}
+.worked-example {
+  scroll-margin-top: 24px;
+}
+.worked-example h3 {
+  font-size: 15px;
+  margin: 24px 0 10px;
+}
+.example-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 28px;
+  margin: 22px 0;
+  align-items: start;
+}
+.example-figure {
+  margin: 0;
+}
+.example-figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface);
+}
+.example-figure figcaption {
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+.example-findings h3 {
+  margin-top: 0;
+}
+.example-findings dl {
+  margin: 0;
+  font-size: 13px;
+}
+.example-findings dl > div {
+  border-top: 1px solid var(--border);
+  padding: 12px 0;
+}
+.example-findings dt {
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.example-findings dd {
+  margin: 0;
+}
+.example-table {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  margin: 22px 0;
+}
+.example-table caption {
+  text-align: left;
+  padding: 14px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.example-table table {
+  min-width: 580px;
+}
+@media (max-width: 800px) {
+  .example-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+}
 .guide {
   margin-top: 30px;
   padding: 26px 0;

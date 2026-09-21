@@ -241,6 +241,47 @@ test("title reader runs new-image OCR, reviews fields and exports a drawing regi
   expect(errors).toEqual([]);
 });
 
+test("P&ID built-in sample produces the worked-example findings after review", async ({
+  page,
+}, info) => {
+  const diagnostics: string[] = [];
+  const errors = watch(page, diagnostics);
+  await openTool(page, "/tools/pid-tag-check/");
+  await page.getByRole("button", { name: "Try a sample", exact: true }).click();
+  await page.getByRole("button", { name: "Read text" }).click();
+  await expect(page.getByLabel("Drawing tags", { exact: true })).toHaveValue(
+    /PT-101/,
+    { timeout: 60000 },
+  );
+  expect(
+    (await page.getByLabel("Drawing tags", { exact: true }).inputValue())
+      .split("\n")
+      .sort(),
+  ).toEqual(["FT-102", "P-101", "PT-101", "PT-101", "XV-104"]);
+  await page.getByRole("button", { name: "Use sample reference" }).click();
+  await expect(
+    page.getByRole("button", { name: "Compare tags" }),
+  ).toBeDisabled();
+  await page
+    .getByRole("checkbox", { name: "I checked the drawing tags" })
+    .check();
+  await page.getByRole("button", { name: "Compare tags" }).click();
+  const csv = await exported(page, "Export tag comparison");
+  expect(csv.slice(1)).toEqual([
+    ["FT-102", "Matched", "1", "1"],
+    ["P-101", "Matched", "1", "1"],
+    ["PT-101", "Matched", "2", "1"],
+    ["TT-103", "Only in list", "0", "1"],
+    ["XV-104", "Only in drawing", "1", "0"],
+  ]);
+  await screenshot(page, `${info.project.name}-pid-worked-example`);
+  await info.attach("reviewed-tesseract-diagnostics", {
+    body: JSON.stringify(diagnostics),
+    contentType: "application/json",
+  });
+  expect(errors).toEqual([]);
+});
+
 test("P&ID new-image OCR and reviewed reference CSV produce exact tag differences", async ({
   page,
 }, info) => {
@@ -395,6 +436,17 @@ test("new tool discovery works without JavaScript and files without labels fabri
       `https://mst-us.ai/tools/${slug}/`,
     );
     await expect(staticPage.locator("main")).toContainText("CSV");
+    if (slug === "pid-tag-check") {
+      await expect(
+        staticPage.getByRole("heading", {
+          name: "Does this P&ID agree with the instrument list?",
+        }),
+      ).toBeVisible();
+      await expect(
+        staticPage.getByRole("link", { name: "Download sample P&ID" }),
+      ).toBeVisible();
+      await expect(staticPage.locator(".example-figure img")).toBeVisible();
+    }
   }
   await staticPage.goto(`${origin}/tools/`);
   await expect(staticPage.locator(".tool-entry")).toHaveCount(5);
