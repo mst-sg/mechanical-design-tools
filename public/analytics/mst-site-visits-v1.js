@@ -58,6 +58,7 @@
         || !/^\/(zh|es|ar|ja)\//.test(nextPath) || nextPath.replace(/^\/(zh|es|ar|ja)/, '') !== win.location.pathname) return;
     redirecting = true;
     if (isInternal() || privacyOptOut()) return;
+    isTest(); // Preserve an explicit/local-preview QA marker before referrer changes.
     remember('sessionStorage', redirectKey, JSON.stringify({ path: nextPath, source: source(win.document.referrer, win.location.search, win.location.hostname), expires: Date.now() + 30000 }));
   }
   function pageSource() {
