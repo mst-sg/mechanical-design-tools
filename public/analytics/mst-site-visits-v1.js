@@ -1,10 +1,10 @@
 /* MST visit baseline v1. Shared verbatim by both overseas sites and tools.
- * No visitor storage, third-party transport, query/referrer strings or tool inputs.
+ * No persistent visitor IDs, third-party transport, query/referrer strings or tool inputs.
  */
 (function (win) {
   'use strict';
   if (!win || win.MSTSiteVisits) return;
-  var sent = false;
+  var sent = false, redirecting = false;
   var hosts = ['mst-sg.com', 'www.mst-sg.com', 'mst-us.ai', 'www.mst-us.ai'];
   function read(store, key) { try { return win[store].getItem(key); } catch (_) { return null; } }
   function remember(store, key, value) {
@@ -51,13 +51,38 @@
     if (/(^|\.)(linkedin\.com|facebook\.com|x\.com|t\.co|reddit\.com)$/.test(ref)) return 'social';
     return 'referral';
   }
-  function optionalAllowed() { return !isInternal() && !isTest() && !privacyOptOut(); }
+  var redirectKey = 'mst_locale_visit_source_v1';
+  var sourceBuckets = ['direct','internal','bing','google','baidu','duckduckgo','yahoo','ai','social','email','campaign','referral'];
+  function prepareLanguageRedirect(nextPath) {
+    if (win.location.hostname.replace(/^www\./, '') !== 'mst-sg.com' || !publicPath(nextPath)
+        || !/^\/(zh|es|ar|ja)\//.test(nextPath) || nextPath.replace(/^\/(zh|es|ar|ja)/, '') !== win.location.pathname) return;
+    redirecting = true;
+    if (isInternal() || privacyOptOut()) return;
+    remember('sessionStorage', redirectKey, JSON.stringify({ path: nextPath, source: source(win.document.referrer, win.location.search, win.location.hostname), expires: Date.now() + 30000 }));
+  }
+  function pageSource() {
+    var current = source(win.document.referrer || '', win.location.search, win.location.hostname);
+    var raw = read('sessionStorage', redirectKey);
+    if (!raw) return current;
+    remember('sessionStorage', redirectKey, null);
+    try {
+      var handoff = JSON.parse(raw), ref = new URL(win.document.referrer), now = Date.now();
+      if (win.location.hostname.replace(/^www\./, '') === 'mst-sg.com' && current === 'internal'
+          && Object.keys(handoff).sort().join(',') === 'expires,path,source'
+          && handoff.path === win.location.pathname && /^\/(zh|es|ar|ja)\//.test(handoff.path)
+          && ref.origin === win.location.origin && handoff.path.replace(/^\/(zh|es|ar|ja)/, '') === ref.pathname
+          && typeof handoff.expires === 'number' && handoff.expires >= now && handoff.expires <= now + 30000
+          && sourceBuckets.indexOf(handoff.source) !== -1) return handoff.source;
+    } catch (_) { /* Invalid or expired handoff is discarded. */ }
+    return current;
+  }
+  function optionalAllowed() { return !redirecting && !isInternal() && !isTest() && !privacyOptOut(); }
   function start() {
-    if (sent || hosts.indexOf(win.location.hostname) === -1 || win.MST_VISITS_DISABLED || isInternal() || privacyOptOut()) return;
+    if (sent || redirecting || win.document.readyState === 'loading' || hosts.indexOf(win.location.hostname) === -1 || win.MST_VISITS_DISABLED || isInternal() || privacyOptOut()) return;
     if (win.document.visibilityState !== 'visible' || win.document.prerendering) return;
     var path = publicPath(win.location.pathname);
     if (!path || typeof win.fetch !== 'function' || !win.crypto || typeof win.crypto.randomUUID !== 'function') return;
-    var payload = { v: 1, event_id: win.crypto.randomUUID(), path: path, source: source(win.document.referrer || '', win.location.search, win.location.hostname), traffic: isTest() ? 'test' : 'browser' };
+    var payload = { v: 1, event_id: win.crypto.randomUUID(), path: path, source: pageSource(), traffic: isTest() ? 'test' : 'browser' };
     sent = true;
     // Deliberately no retries: reloads are new documents; duplicate UUIDs are also
     // rejected by the server. A failed collector never blocks the public page.
@@ -68,7 +93,8 @@
       }).then(function (response) { return response.arrayBuffer(); }).catch(function () {});
     } catch (_) { /* Best-effort measurement, no application dependency. */ }
   }
-  win.MSTSiteVisits = { version: 1, start: start, source: source, publicPath: publicPath, isInternal: isInternal, isTest: isTest, optionalAllowed: optionalAllowed };
+  win.MSTSiteVisits = { version: 1, start: start, source: source, prepareLanguageRedirect: prepareLanguageRedirect, publicPath: publicPath, isInternal: isInternal, isTest: isTest, optionalAllowed: optionalAllowed };
+  win.document.addEventListener('DOMContentLoaded', start);
   win.document.addEventListener('visibilitychange', start);
   win.document.addEventListener('prerenderingchange', start);
   start();
