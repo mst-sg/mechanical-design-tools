@@ -1,3 +1,4 @@
+import { isVisitRequest } from "./visit-request";
 import { test, expect, type Page, type TestInfo } from "@playwright/test";
 
 const corePattern = "**/vendor/core/*.wasm.js";
@@ -34,7 +35,7 @@ function record(page: Page) {
       new URL(r.url()).origin !== origin
     )
       errors.push(`Unexpected egress: ${r.url()}`);
-    if (r.method() !== "GET") errors.push(`Unexpected write: ${r.method()}`);
+    if (r.method() !== "GET" && !isVisitRequest(r)) errors.push(`Unexpected write: ${r.method()}`);
   });
   page.on("requestfailed", (r) => {
     const entry = `${r.failure()?.errorText} ${r.url()}`;

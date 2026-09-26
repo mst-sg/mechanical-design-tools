@@ -110,6 +110,7 @@ export function App({ path }: { path: string }) {
             Build with MST →
           </a>
           <a href="/tools/licenses.html">Open-source licenses</a>
+          <a href="/privacy/#page-visit-measurement">Page visit privacy</a>
         </div>
       </footer>
     </>

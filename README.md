@@ -55,7 +55,7 @@ This version supports tags such as `PT-101`, `P-002A` and `TK-12`: one letter pr
 
 ## Privacy
 
-Selected files and recognized content are handled in browser memory. No upload API, inference service, analytics, document logging or file persistence is used. Refreshing clears the working files and results. Recognition workers and language models are served from the same website. The hosting server can receive ordinary page/asset request metadata, but not drawing/BOM contents.
+Selected files and recognized content are handled in browser memory. No upload API, inference service, document logging or file persistence is used. The MST-hosted site sends one same-origin page-view event containing only the public tool path, source category and random event ID. The server derives a daily salted visit identifier; it never receives tool inputs or file contents through this collector. Internal/QA events are excluded from audience totals; GPC and DNT disable it. The hosted Privacy Notice describes the 35-day event retention. Optional Google Analytics is not loaded on tool pages. Refreshing clears the working files and results. Recognition workers and language models are served from the same website. The hosting server can receive ordinary page/asset request metadata, but not drawing/BOM contents.
 
 The hosted pages set a restrictive content policy for scripts, workers and connections. Do not add third-party analytics or remote inference while retaining this local-processing claim.
 
