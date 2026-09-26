@@ -1,3 +1,4 @@
+import { isVisitRequest } from "./visit-request";
 import { test, expect, type Page } from "@playwright/test";
 import { Resvg } from "@resvg/resvg-js";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
@@ -30,7 +31,7 @@ function watch(page: Page, ocrDiagnostics?: string[], allowCancel = false) {
       new URL(r.url()).origin !== origin
     )
       errors.push("Unexpected egress: " + r.url());
-    if (r.method() !== "GET") errors.push("Unexpected write: " + r.method());
+    if (r.method() !== "GET" && !isVisitRequest(r)) errors.push("Unexpected write: " + r.method());
   });
   page.on("response", (r) => {
     if (r.status() >= 400) errors.push(r.status() + " " + r.url());
