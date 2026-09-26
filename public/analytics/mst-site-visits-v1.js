@@ -4,7 +4,7 @@
 (function (win) {
   'use strict';
   if (!win || win.MSTSiteVisits) return;
-  var sent = false, redirecting = false;
+  var sent = false, redirecting = false, landingSource = null;
   var hosts = ['mst-sg.com', 'www.mst-sg.com', 'mst-us.ai', 'www.mst-us.ai'];
   function read(store, key) { try { return win[store].getItem(key); } catch (_) { return null; } }
   function remember(store, key, value) {
@@ -81,10 +81,11 @@
   function optionalAllowed() { return !redirecting && !isInternal() && !isTest() && !privacyOptOut(); }
   function start() {
     if (sent || redirecting || win.document.readyState === 'loading' || hosts.indexOf(win.location.hostname) === -1 || win.MST_VISITS_DISABLED || isInternal() || privacyOptOut()) return;
+    if (landingSource === null) landingSource = pageSource();
     if (win.document.visibilityState !== 'visible' || win.document.prerendering) return;
     var path = publicPath(win.location.pathname);
     if (!path || typeof win.fetch !== 'function' || !win.crypto || typeof win.crypto.randomUUID !== 'function') return;
-    var payload = { v: 1, event_id: win.crypto.randomUUID(), path: path, source: pageSource(), traffic: isTest() ? 'test' : 'browser' };
+    var payload = { v: 1, event_id: win.crypto.randomUUID(), path: path, source: landingSource, traffic: isTest() ? 'test' : 'browser' };
     sent = true;
     // Deliberately no retries: reloads are new documents; duplicate UUIDs are also
     // rejected by the server. A failed collector never blocks the public page.
