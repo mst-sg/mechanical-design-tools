@@ -55,6 +55,7 @@
   var sourceBuckets = ['direct','internal','bing','google','baidu','duckduckgo','yahoo','ai','social','email','campaign','referral'];
   function prepareLanguageRedirect(nextPath) {
     if (win.location.hostname.replace(/^www\./, '') !== 'mst-sg.com' || !publicPath(nextPath)
+        || !publicPath(win.location.pathname) || /^\/(en|zh|es|ar|ja)(?:\/|$)/.test(win.location.pathname)
         || !/^\/(zh|es|ar|ja)\//.test(nextPath) || nextPath.replace(/^\/(zh|es|ar|ja)/, '') !== win.location.pathname) return;
     redirecting = true;
     if (isInternal() || privacyOptOut()) return;
