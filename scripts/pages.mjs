@@ -78,6 +78,21 @@ await writeFile(
   "dist/licenses.html",
   `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Open-source licenses | MST Tools</title><body style="max-width:900px;margin:30px auto;padding:20px;font:15px system-ui"><a href="/tools/">Back to tools</a><h1>Open-source licenses</h1><p>MST tool code is MIT licensed. Libraries and language data retain their original licenses.</p><pre style="white-space:pre-wrap">${esc(notices)}</pre></body></html>`,
 );
+const analyticsHash = createHash('sha256').update(await readFile('public/analytics/mst-site-visits-v1.js')).digest('hex').slice(0,12);
+async function instrumentHtml(dir = 'dist') {
+  for (const entry of await readdir(dir, {withFileTypes:true})) {
+    const path = `${dir}/${entry.name}`;
+    if (entry.isDirectory()) await instrumentHtml(path);
+    else if (entry.name.endsWith('.html')) {
+      let html = await readFile(path,'utf8');
+      html = html.replace(/<script[^>]+src="\/tools\/analytics\/mst-site-visits-v1\.js[^"]*"[^>]*><\/script>/g,'');
+      const script = `<script defer src="/tools/analytics/mst-site-visits-v1.js?v=${analyticsHash}"></script>`;
+      html = html.includes('</head>') ? html.replace('</head>',script+'</head>') : html.replace('</body>',script+'</body>');
+      await writeFile(path,html);
+    }
+  }
+}
+await instrumentHtml();
 const files = [];
 async function walk(dir = "dist") {
   for (const f of (await readdir(dir)).sort()) {

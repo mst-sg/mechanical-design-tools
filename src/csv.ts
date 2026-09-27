@@ -1,3 +1,4 @@
+import { exportUsage } from "./usage";
 import { type BomField, type BomRow, fields, labels } from "./types";
 export const MAX_ROWS = 10000;
 export function parseCsv(source: string): string[][] {
@@ -104,6 +105,7 @@ export function downloadCsv(text: string, name: string) {
   a.href = url;
   a.download = name;
   a.click();
+  exportUsage();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 const aliases: Record<BomField, string[]> = {

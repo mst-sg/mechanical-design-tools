@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { startUsage, type UsageMode } from "./usage";
+import { useRef, useState } from "react";
 import { downloadCsv } from "./csv";
 import { readUtf8 } from "./text-file";
 import {
@@ -8,11 +9,13 @@ import {
 } from "./register-compare";
 
 export function RegisterCompare() {
+  const mode = useRef<UsageMode>("provided");
   const [inputs, setInputs] = useState(["", ""]);
   const [result, setResult] = useState<RegisterDiff[] | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   function change(i: number, text: string) {
+    mode.current = "provided";
     setInputs((p) => p.map((v, n) => (n === i ? text : v)));
     setResult(null);
     setError("");
@@ -45,6 +48,7 @@ export function RegisterCompare() {
         }),
       );
       setInputs(texts);
+      mode.current = "sample";
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -104,8 +108,10 @@ export function RegisterCompare() {
         className="button primary"
         disabled={loading || inputs.some((v) => !v.trim())}
         onClick={() => {
+          const usage = startUsage(mode.current);
           try {
             setResult(compareRegisters(inputs[0], inputs[1]));
+            usage.complete();
             setError("");
           } catch (e) {
             setResult(null);

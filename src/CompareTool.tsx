@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { startUsage, type UsageMode } from "./usage";
+import { useMemo, useRef, useState } from "react";
 import { fields, labels, type BomField } from "./types";
 import {
   downloadCsv,
@@ -28,6 +29,10 @@ function parsed(text: string): { data: string[][]; error: string } {
   }
 }
 export function BomCompare() {
+  const modes = useRef<Record<"before" | "after", UsageMode>>({
+    before: "provided",
+    after: "provided",
+  });
   const [before, setBefore] = useState<Revision>(empty),
     [after, setAfter] = useState<Revision>(empty),
     [result, setResult] = useState<DiffRow[] | null>(null),
@@ -36,7 +41,13 @@ export function BomCompare() {
     [loading, setLoading] = useState(false);
   const b = useMemo(() => parsed(before.text), [before.text]),
     a = useMemo(() => parsed(after.text), [after.text]);
-  function change(side: "before" | "after", text: string, name = "") {
+  function change(
+    side: "before" | "after",
+    text: string,
+    name = "",
+    mode: UsageMode = "provided",
+  ) {
+    modes.current[side] = mode;
     const value = { text, name, map: guessColumns(parsed(text).data[0] ?? []) };
     (side === "before" ? setBefore : setAfter)(value);
     setResult(null);
@@ -66,6 +77,11 @@ export function BomCompare() {
     }
   }
   function run() {
+    const usage = startUsage(
+      modes.current.before === "sample" && modes.current.after === "sample"
+        ? "sample"
+        : "provided",
+    );
     try {
       if (b.error || a.error) throw new Error(b.error || a.error);
       setResult(
@@ -74,6 +90,7 @@ export function BomCompare() {
           mappedRows(a.data, after.map),
         ),
       );
+      usage.complete();
       setFilter("All");
       setError("");
     } catch (e) {
@@ -82,8 +99,8 @@ export function BomCompare() {
     }
   }
   function sample() {
-    change("before", samples.before, "Sample · revision A");
-    change("after", samples.after, "Sample · revision B");
+    change("before", samples.before, "Sample · revision A", "sample");
+    change("after", samples.after, "Sample · revision B", "sample");
   }
   function mapping(side: "before" | "after", field: BomField, column: number) {
     (side === "before" ? setBefore : setAfter)((prev) => ({
@@ -353,7 +370,8 @@ export function BomCompare() {
           What changed in this bracket assembly’s parts list?
         </h2>
         <p>
-          Quick sample: two flat BOM revisions, four rows each. The complete drawing-to-BOM lab uses its own five-row files. These are the expected
+          Quick sample: two flat BOM revisions, four rows each. The complete
+          drawing-to-BOM lab uses its own five-row files. These are the expected
           findings from the sample, not results from your files.
         </p>
         <div

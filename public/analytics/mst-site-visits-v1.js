@@ -98,7 +98,52 @@
       }).then(function (response) { return response.arrayBuffer(); }).catch(function () {});
     } catch (_) { /* Best-effort measurement, no application dependency. */ }
   }
-  win.MSTSiteVisits = { version: 1, start: start, source: source, prepareLanguageRedirect: prepareLanguageRedirect, publicPath: publicPath, isInternal: isInternal, isTest: isTest, optionalAllowed: optionalAllowed };
+  // Per-attempt random IDs live only in memory, never cookies or storage.
+  var toolNames = ["drawing-to-bom", "bom-compare", "bom-check", "title-block-reader", "pid-tag-check", "drawing-register-compare", "gds-handoff-manifest", "pid-bom-checker", "uhp-gas-stick-checklist", "pid-tag-parser", "mpw-node-selection-advisor", "mpw-alternative-route-finder", "report-revision-check", "ai-pid-feasibility-checker", "pdk-checklist", "mpw-shuttle-finder", "mpw-readiness-checker", "pid-assembly-intake", "obsolete-parts-rfq-cleaner", "mpw-planner", "package-selector", "mpw-procurement-timeline", "mpw-estimator", "mpw-rfq-pack", "bom-rfq-normalizer", "mpw-gds"], usageSent = 0;
+  function currentTool() {
+    var match = win.location.pathname.match(/^\/(?:zh\/|es\/|ar\/|ja\/)?tools\/([a-z0-9-]+)\/(?:index\.html)?$/);
+    return match && toolNames.indexOf(match[1]) !== -1 ? match[1] : null;
+  }
+  function usage(action, mode, runId, tool) {
+    try {
+      if (usageSent >= 100 || redirecting || hosts.indexOf(win.location.hostname) === -1 || win.MST_VISITS_DISABLED
+          || isInternal() || privacyOptOut() || (win.document.visibilityState !== 'visible' && (action === 'tool_start' || action === 'resource_download')) || win.document.prerendering
+          || typeof win.fetch !== 'function' || !win.crypto || !win.crypto.randomUUID || !publicPath(win.location.pathname)) return;
+      if (['tool_start','tool_complete','tool_export','resource_download'].indexOf(action) === -1
+          || ['sample','provided','default'].indexOf(mode) === -1 || !tool
+          || !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(runId)) return;
+      if (landingSource === null) landingSource = pageSource();
+      var payload = {v:2,event_id:win.crypto.randomUUID(),path:publicPath(win.location.pathname),source:landingSource,
+        traffic:isTest()?'test':'browser',action:action,mode:mode,run_id:runId,tool:tool};
+      usageSent++;
+      win.fetch('/wp-json/mst-visits/v1/tool-event', {method:'POST',credentials:'same-origin',cache:'no-store',keepalive:true,
+        referrerPolicy:'origin',headers:{'Content-Type':'application/json','X-MST-Visits':'1'},body:JSON.stringify(payload)})
+        .then(function(response){return response.arrayBuffer();}).catch(function(){});
+      return true;
+    } catch (_) { /* Measurement must never interrupt a tool. */ }
+  }
+  function begin(mode) {
+    var id = '', tool = currentTool(), completed = false, exported = false;
+    try { id = win.crypto.randomUUID(); } catch (_) { /* Unsupported browser. */ }
+    var started = usage('tool_start',mode,id,tool) === true;
+    return {
+      complete:function(){if(started&&!completed)completed=usage('tool_complete',mode,id,tool)===true;},
+      export:function(){if(completed&&!exported)exported=usage('tool_export',mode,id,tool)===true;}
+    };
+  }
+  // A static resource click is a download request, not proof of saving a file.
+  win.document.addEventListener('click',function(event){
+    try {
+      if (!event.isTrusted || event.defaultPrevented || event.button !== 0) return;
+      var a=event.target.closest('a[href]'); if(!a) return;
+      var url=new URL(a.href,win.location.href);
+      var handbook = a.hasAttribute('download') && ['/tools/handbook/index.html','/tools/mpw-handoff-handbook/index.html','/tools/samples/mpw-handoff-lab/handbook.html'].indexOf(url.pathname) !== -1;
+      var resource = /\.(pdf|csv|zip)$/i.test(url.pathname) && /^\/(?:tools\/(?:labs|samples)\/|wp-content\/themes\/[^/]+\/assets\/downloads\/)/.test(url.pathname);
+      if(url.origin!==win.location.origin || (!handbook && !resource)) return;
+      usage('resource_download', /^\/tools\/(labs|samples)\//.test(url.pathname)?'sample':'default',win.crypto.randomUUID(),'resource');
+    } catch (_) { /* No raw link, file name or query is transmitted. */ }
+  });
+  win.MSTSiteVisits = { version: 2, begin: begin, start: start, source: source, prepareLanguageRedirect: prepareLanguageRedirect, publicPath: publicPath, isInternal: isInternal, isTest: isTest, optionalAllowed: optionalAllowed };
   win.document.addEventListener('DOMContentLoaded', start);
   win.document.addEventListener('visibilitychange', start);
   win.document.addEventListener('prerenderingchange', start);
