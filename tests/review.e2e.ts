@@ -450,7 +450,7 @@ test("new tool discovery works without JavaScript and files without labels fabri
     }
   }
   await staticPage.goto(`${origin}/tools/`);
-  await expect(staticPage.locator(".tool-entry")).toHaveCount(5);
+  await expect(staticPage.locator(".tool-entry")).toHaveCount(6);
   await context.close();
   const errors = watch(page);
   await openTool(page, "/tools/title-block-reader/");
