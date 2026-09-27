@@ -154,7 +154,7 @@ function ToolDirectory() {
       </section>
       <section className="guide">
         <h2>Learn a complete workflow</h2>
-        <div className="related-links"><a href="/tools/drawing-to-bom/#drawing-bom-lab">Drawing → checked BOM → revision review</a><a href="/tools/handbook/">Engineering tool handbook</a></div>
+        <div className="related-links"><a href="/tools/handbook/#drawing-bom">Drawing → checked BOM → revision review</a><a href="/tools/handbook/">Engineering tool handbook</a></div>
         <h2>Open code, online tools</h2>
         <p>
           Use these tools here, or inspect and adapt the MIT-licensed source on
