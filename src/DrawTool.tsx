@@ -1,3 +1,4 @@
+import { BomLabGuide } from "./BomLabGuide";
 import { useEffect, useRef, useState, type PointerEvent } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import {
@@ -511,6 +512,7 @@ export function DrawingToBom() {
           )}
         </section>
       </div>
+      <BomLabGuide />
       <section className="guide">
         <h2>From drawing table to a usable spreadsheet</h2>
         <ol>

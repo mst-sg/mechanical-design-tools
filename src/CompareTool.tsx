@@ -353,7 +353,7 @@ export function BomCompare() {
           What changed in this bracket assembly’s parts list?
         </h2>
         <p>
-          Two flat BOM revisions, four rows each. These are the expected
+          Quick sample: two flat BOM revisions, four rows each. The complete drawing-to-BOM lab uses its own five-row files. These are the expected
           findings from the sample, not results from your files.
         </p>
         <div

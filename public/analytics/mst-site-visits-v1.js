@@ -37,6 +37,7 @@
     var campaign = (q.get('utm_source') || '').toLowerCase();
     if (/^(bing|cn\.bing\.com|bing\.com)$/.test(campaign)) return 'bing';
     if (/^(google|google\.com)$/.test(campaign)) return 'google';
+    if (/^(github|github\.com)$/.test(campaign)) return 'github';
     if (/^(email|newsletter)$/.test(campaign)) return 'email';
     if (campaign) return 'campaign';
     var ref;
@@ -44,6 +45,7 @@
     if (ref.replace(/^www\./, '') === host.replace(/^www\./, '')) return 'internal';
     if (/(^|\.)bing\.(com|cn)$/.test(ref)) return 'bing';
     if (/(^|\.)google\.(com|co\.uk|com\.sg|com\.au|co\.jp|de|fr|ca|co\.in|es|it|nl|com\.hk|com\.tw)$/.test(ref)) return 'google';
+    if (/(^|\.)github\.com$/.test(ref)) return 'github';
     if (/(^|\.)baidu\.com$/.test(ref)) return 'baidu';
     if (/(^|\.)duckduckgo\.com$/.test(ref)) return 'duckduckgo';
     if (/(^|\.)yahoo\.(com|co\.jp)$/.test(ref)) return 'yahoo';
@@ -52,7 +54,7 @@
     return 'referral';
   }
   var redirectKey = 'mst_locale_visit_source_v1';
-  var sourceBuckets = ['direct','internal','bing','google','baidu','duckduckgo','yahoo','ai','social','email','campaign','referral'];
+  var sourceBuckets = ['direct','internal','bing','google','baidu','duckduckgo','yahoo','ai','social','email','campaign','github','referral'];
   function prepareLanguageRedirect(nextPath) {
     if (win.location.hostname.replace(/^www\./, '') !== 'mst-sg.com' || !publicPath(nextPath)
         || !publicPath(win.location.pathname) || /^\/(en|zh|es|ar|ja)(?:\/|$)/.test(win.location.pathname)
