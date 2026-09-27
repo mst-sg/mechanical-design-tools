@@ -14,7 +14,7 @@ No account, API key or installation is needed for the hosted tools. Source code 
 
 ## Complete a drawing-to-BOM task
 
-[Run the complete bracket exercise](https://mst-us.ai/tools/drawing-to-bom/?utm_source=github&utm_medium=repository&utm_campaign=us_drawing_bom_lab#drawing-bom-lab) · [Download the input/output pack](https://mst-us.ai/tools/labs/drawing-bom/drawing-bom-lab.zip?utm_source=github&utm_medium=repository&utm_campaign=us_drawing_bom_lab) · [Read the handbook](https://mst-us.ai/tools/handbook/?utm_source=github&utm_medium=repository&utm_campaign=us_handbook)
+[Run the complete bracket exercise](https://mst-us.ai/tools/handbook/?utm_source=github&utm_medium=repository&utm_campaign=us_drawing_bom_lab#drawing-bom) · [Download the input/output pack](https://mst-us.ai/tools/labs/drawing-bom/drawing-bom-lab.zip?utm_source=github&utm_medium=repository&utm_campaign=us_drawing_bom_lab) · [Read the handbook](https://mst-us.ai/tools/handbook/?utm_source=github&utm_medium=repository&utm_campaign=us_handbook)
 
 **Input:** an MST-created five-row drawing, a deliberately faulty transcription and a revised BOM. **Actions:** read the printed table, correct a misread identifier and quantities, remove an accidental duplicate, export and compare. **Output:** five reviewed rows and a diff with **1 added, 1 removed, 2 changed, 2 unchanged**. This does not infer a BOM from drawing geometry.
 

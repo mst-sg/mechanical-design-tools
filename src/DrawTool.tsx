@@ -513,35 +513,6 @@ export function DrawingToBom() {
         </section>
       </div>
       <BomLabGuide />
-      <section className="guide">
-        <h2>From drawing table to a usable spreadsheet</h2>
-        <ol>
-          <li>
-            <strong>Choose the page.</strong> Use a clear, upright image or the
-            correct PDF sheet.
-          </li>
-          <li>
-            <strong>Crop the table.</strong> Include headers such as Part
-            number, Description and Qty; leave drawing notes outside.
-          </li>
-          <li>
-            <strong>Check and export.</strong> Correct misread characters and
-            blank quantities before downloading.
-          </li>
-        </ol>
-        <p>
-          This tool extracts an existing printed BOM or parts list. It does not
-          infer hidden parts, quantities or assembly structure from geometry.
-          Wrapped text, merged cells, rotated tables and poor scans may need
-          manual correction.
-        </p>
-        <a href="/tools/bom-compare/">
-          Already have two BOM revisions? Compare them →
-        </a>
-        <a href="/tools/bom-check/">
-          Check missing values and repeated parts →
-        </a>
-      </section>
     </>
   );
 }

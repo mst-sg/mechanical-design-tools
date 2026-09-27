@@ -58,8 +58,15 @@ test("complete five-part BOM lab produces its independent expected differences a
 }, info) => {
   await page.goto("/tools/drawing-to-bom/");
   await expect(
+    page.getByRole("button", { name: "Try a sample" }),
+  ).toBeVisible();
+  await page
+    .getByRole("link", { name: "Step-by-step guide and sample files" })
+    .click();
+  await expect(page).toHaveURL(/\/tools\/handbook\/#drawing-bom$/);
+  await expect(
     page.getByRole("heading", {
-      name: "One drawing, a checked BOM, and a revision review",
+      name: "1. A printed parts table should not require repeated retyping",
     }),
   ).toBeVisible();
   const bundle = await request.get(
