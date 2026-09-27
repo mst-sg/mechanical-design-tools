@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { startUsage, type UsageMode, type UsageRun } from "./usage";
+import { useMemo, useRef, useState, useEffect } from "react";
 import { auditBom, combinePart, sourceRows, type SourceRow } from "./bom-check";
 import {
   downloadCsv,
@@ -13,6 +14,8 @@ const sample =
   "Item,Part number,Description,Quantity,Material,Unit,Revision\n1,000417,Spacer,0.1,Steel,ea,B\n2,000417,Spacer,0.2,Steel,ea,B\n3,BRK-22,Bracket,2,Steel,ea,A\n4,BRK-22,Bracket,2,Aluminium,ea,A\n5,,Seal,3,Rubber,ea,A\n6,PIN-8,Pin,,Steel,ea,A\n7, CAP-6 ,Cap,1,,ea,A";
 const PAGE_SIZE = 25;
 export function BomCheckTool() {
+  const inputMode = useRef<UsageMode>("provided");
+  const usage = useRef<UsageRun | null>(null);
   const [input, setInput] = useState(""),
     [name, setName] = useState("");
   const [header, setHeader] = useState<string[]>([]),
@@ -36,7 +39,15 @@ export function BomCheckTool() {
       };
     }
   }, [header, rows, map]);
-  function changeInput(text: string, filename = "") {
+  useEffect(() => {
+    if (rows.length && !analysis.error) usage.current?.complete();
+  }, [rows, analysis.error]);
+  function changeInput(
+    text: string,
+    filename = "",
+    mode: UsageMode = "provided",
+  ) {
+    inputMode.current = mode;
     setInput(text);
     setName(filename);
     setHeader([]);
@@ -49,6 +60,7 @@ export function BomCheckTool() {
     setPage(0);
   }
   function check() {
+    usage.current = startUsage(inputMode.current);
     setError("");
     setNotice("");
     try {
@@ -106,7 +118,9 @@ export function BomCheckTool() {
           <button
             className="button secondary small"
             disabled={loading}
-            onClick={() => changeInput(sample, "Synthetic review example")}
+            onClick={() =>
+              changeInput(sample, "Synthetic review example", "sample")
+            }
           >
             Try a sample
           </button>

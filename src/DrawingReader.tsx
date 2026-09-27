@@ -1,15 +1,18 @@
+import { startUsage, type UsageMode, type UsageRun } from "./usage";
 import { useEffect, useRef, useState, type PointerEvent } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { fileKind, loadImage, openPdf, pdfPage, type Drawing } from "./files";
 import { fullCrop, type Crop } from "./types";
 import { recognizeText } from "./recognize";
 export type ReadSheet = {
+  mode: UsageMode;
+  usage?: UsageRun;
   sourceId: string;
   file: string;
   page: number;
   text: string;
 };
-type SourceFile = { id: string; file: File };
+type SourceFile = { id: string; file: File; mode: UsageMode };
 type Props = {
   sample: { url: string; name: string; crop: Crop };
   onResult: (sheet: ReadSheet) => void;
@@ -113,7 +116,11 @@ export function DrawingReader({
       setError("Choose up to 10 files, totalling no more than 100 MB.");
       return;
     }
-    const next = list.map((file) => ({ id: crypto.randomUUID(), file }));
+    const next = list.map((file) => ({
+      id: crypto.randomUUID(),
+      file,
+      mode: "provided" as const,
+    }));
     setFiles(next);
     setSelected(0);
     await open(next[0]);
@@ -126,6 +133,7 @@ export function DrawingReader({
       if (!response.ok)
         throw new Error("The sample could not load. Please try again.");
       const file = {
+        mode: "sample" as const,
         id: crypto.randomUUID(),
         file: new File([await response.blob()], sample.name, {
           type: "image/png",
@@ -166,6 +174,8 @@ export function DrawingReader({
       c = new AbortController();
     control.current = c;
     const selectedSource = source.current;
+    const usage =
+      recognitionMode === "text" ? startUsage(selectedSource.mode) : undefined;
     invalidate();
     setBusy(true);
     setProgress({ message: "Loading recognition engine…", value: 0 });
@@ -185,6 +195,8 @@ export function DrawingReader({
         const arranged = result.layoutText || result.text;
         setText(arranged);
         resultCallback.current({
+          mode: selectedSource.mode,
+          usage,
           sourceId: `${selectedSource.id}:${page}`,
           file: drawing.name,
           page,

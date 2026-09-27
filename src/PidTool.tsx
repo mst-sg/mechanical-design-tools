@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { startUsage } from "./usage";
+import { useRef, useState } from "react";
 import { DrawingReader, type ReadSheet } from "./DrawingReader";
 import {
   compareTags,
@@ -15,6 +16,7 @@ const sample = {
   crop: { left: 0, top: 0, width: 100, height: 100 },
 };
 export function PidTool() {
+  const referenceIsSample = useRef(false);
   const [prefixes, setPrefixes] = useState(defaultPrefixes),
     [sheet, setSheet] = useState<ReadSheet | null>(null);
   const [drawing, setDrawing] = useState(""),
@@ -52,6 +54,11 @@ export function PidTool() {
     }
   }
   function run() {
+    const usage = startUsage(
+      sheet?.mode === "sample" && referenceIsSample.current
+        ? "sample"
+        : "provided",
+    );
     setError("");
     setResult(null);
     if (!reviewed) {
@@ -60,6 +67,7 @@ export function PidTool() {
     }
     try {
       setResult(compareTags(tagList(drawing), tagList(reference)));
+      usage.complete();
       setFilter("All");
     } catch (e) {
       setError(
@@ -168,6 +176,7 @@ export function PidTool() {
               placeholder="Tag,Description&#10;PT-101,Pressure transmitter"
               disabled={loading}
               onChange={(e) => {
+                referenceIsSample.current = false;
                 setReference(e.target.value);
                 setResult(null);
               }}
@@ -193,6 +202,7 @@ export function PidTool() {
                 setResult(null);
                 setError("");
                 try {
+                  referenceIsSample.current = false;
                   setReference(await readUtf8(f, 1_000_000));
                 } catch (err) {
                   setError(
@@ -220,6 +230,7 @@ export function PidTool() {
             <button
               className="text-button"
               onClick={() => {
+                referenceIsSample.current = true;
                 setReference(
                   "Tag,Description\nP-101,Feed pump\nPT-101,Pressure transmitter\nFT-102,Flow transmitter\nTT-103,Temperature transmitter",
                 );

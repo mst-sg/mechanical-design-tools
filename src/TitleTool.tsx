@@ -32,6 +32,7 @@ export function TitleTool() {
     setValues(parsed.values);
     setReviewed(false);
     const found = Object.values(parsed.values).filter(Boolean).length;
+    if (found) next.usage?.complete();
     setNote(
       found
         ? `${found} labelled fields found. Check the values against the drawing.${parsed.ambiguous.length ? " Repeated labels were left blank: " + parsed.ambiguous.map((f) => titleLabels[f]).join(", ") + "." : ""}`

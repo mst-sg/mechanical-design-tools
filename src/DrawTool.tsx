@@ -1,3 +1,4 @@
+import { startUsage, type UsageMode } from "./usage";
 import { BomLabGuide } from "./BomLabGuide";
 import { useEffect, useRef, useState, type PointerEvent } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
@@ -25,6 +26,7 @@ export function DrawingToBom() {
     [lang, setLang] = useState("eng"),
     [page, setPage] = useState(1),
     [pages, setPages] = useState(0);
+  const inputMode = useRef<UsageMode>("provided");
   const pdf = useRef<PDFDocumentProxy | null>(null),
     controller = useRef<AbortController | null>(null),
     generation = useRef(0),
@@ -50,7 +52,8 @@ export function DrawingToBom() {
     setNote("");
     setError("");
   }
-  async function choose(file: File) {
+  async function choose(file: File, mode: UsageMode = "provided") {
+    inputMode.current = mode;
     const id = ++generation.current;
     resetResults();
     setDrawing(null);
@@ -101,6 +104,7 @@ export function DrawingToBom() {
         new File([await response.blob()], "Sample bracket assembly.png", {
           type: "image/png",
         }),
+        "sample",
       );
       setCrop({ left: 3, top: 50, width: 94, height: 42 });
     } catch (e) {
@@ -132,6 +136,7 @@ export function DrawingToBom() {
   async function recognize() {
     if (!drawing) return;
     resetResults();
+    const usage = startUsage(inputMode.current);
     setBusy(true);
     const id = ++generation.current;
     const control = new AbortController();
@@ -149,6 +154,7 @@ export function DrawingToBom() {
       );
       if (id === generation.current) {
         setRows(result.rows);
+        if (result.rows.length) usage.complete();
         setText(result.text);
         setNote(result.message);
       }
