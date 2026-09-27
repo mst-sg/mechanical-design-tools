@@ -1,0 +1,7 @@
+Part number,Status,Before quantity,After quantity,Quantity delta,Before material,After material
+BRK-100,Unchanged,1,1,0,Aluminium 6061,Aluminium 6061
+PIN-020,Changed,2,2,0,Steel,Stainless steel
+SCR-M6,Changed,4,6,2,Steel,Steel
+WSH-M6,Removed,4,0,-4,Steel,
+NUT-M6,Unchanged,4,4,0,Steel,Steel
+SPC-006,Added,0,2,2,,Steel

@@ -42,4 +42,12 @@ export const tools = [
     subtitle:
       "Turn printed title-block information into a reviewed drawing register.",
   },
+  {
+    slug: "drawing-register-compare",
+    name: "Drawing Register Compare",
+    eyebrow: "DRAWING SET A → DRAWING SET B",
+    description:
+      "Find added, removed and changed drawing sheets by drawing number and sheet. Compare revision labels and export a review list.",
+    subtitle: "Check which drawing sheets changed before handoff.",
+  },
 ];

@@ -8,3 +8,13 @@ public/vendor/
 public/THIRD_PARTY_NOTICES.txt
 public/samples/*.png
 public/samples/*.pdf
+
+# Local dependency symlinks and deterministic generated lab files
+node_modules
+public/labs/drawing-bom/bracket-bom.svg
+public/labs/drawing-bom/bracket-bom.png
+public/labs/drawing-bom/bracket-bom.pdf
+public/labs/drawing-bom/LICENSE
+public/labs/drawing-bom/handbook.html
+public/labs/drawing-bom/SHA256SUMS
+public/labs/drawing-bom/*.zip

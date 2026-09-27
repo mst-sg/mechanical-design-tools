@@ -1,6 +1,6 @@
 {
   "name": "mst-mechanical-design-tools",
-  "version": "0.2.5",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -11,7 +11,7 @@
     "dev": "vite --host 127.0.0.1",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",
-    "build": "node scripts/assets.mjs && vite build && node scripts/pages.mjs",
+    "build": "node scripts/assets.mjs && python3 scripts/lab-pack.py && vite build && node scripts/pages.mjs",
     "preview": "vite preview --host 127.0.0.1 --port 4173",
     "test:e2e": "playwright test"
   },

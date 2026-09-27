@@ -69,7 +69,7 @@ try {
 }
 await writeFile(
   "dist/sitemap.xml",
-  `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${pages.map(([s]) => `<url><loc>https://mst-us.ai/tools/${s ? s + "/" : ""}</loc></url>`).join("")}</urlset>`,
+  `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://mst-us.ai/tools/handbook/</loc></url>${pages.map(([s]) => `<url><loc>https://mst-us.ai/tools/${s ? s + "/" : ""}</loc></url>`).join("")}</urlset>`,
 );
 const notices = await readFile("public/THIRD_PARTY_NOTICES.txt", "utf8");
 const esc = (s) =>

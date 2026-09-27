@@ -1,21 +1,29 @@
 # MST Mechanical Design Tools
 
-Free tools for mechanical engineers, used directly on [mst-us.ai](https://mst-us.ai/tools/).
+Free tools for mechanical engineers, used directly on [mst-us.ai](https://mst-us.ai/tools/?utm_source=github&utm_medium=repository&utm_campaign=us_mechanical_tools).
 
 | Tool               | What it finishes                                                                                               | Online                                                                |
 | ------------------ | -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| P&ID Tag Check     | Read printed tags, correct the list and compare it with reference tags                                         | [Use P&ID Tag Check](https://mst-us.ai/tools/pid-tag-check/)          |
-| BOM Compare        | Compare two CSV revisions by part number, review changes, export the difference                                | [Use BOM Compare](https://mst-us.ai/tools/bom-compare/)               |
-| Drawing to BOM     | Read an existing parts table from an image or PDF, edit the rows, export CSV                                   | [Use Drawing to BOM](https://mst-us.ai/tools/drawing-to-bom/)         |
-| BOM Check          | Find missing values and conflicting or repeated parts, edit without losing custom columns, export reviewed CSV | [Use BOM Check](https://mst-us.ai/tools/bom-check/)                   |
-| Title Block Reader | Read labelled drawing fields, review sheets, export a drawing register                                         | [Use Title Block Reader](https://mst-us.ai/tools/title-block-reader/) |
+| P&ID Tag Check     | Read printed tags, correct the list and compare it with reference tags                                         | [Use P&ID Tag Check](https://mst-us.ai/tools/pid-tag-check/?utm_source=github&utm_medium=repository&utm_campaign=us_mechanical_tools)          |
+| BOM Compare        | Compare two CSV revisions by part number, review changes, export the difference                                | [Use BOM Compare](https://mst-us.ai/tools/bom-compare/?utm_source=github&utm_medium=repository&utm_campaign=us_mechanical_tools)               |
+| Drawing to BOM     | Read an existing parts table from an image or PDF, edit the rows, export CSV                                   | [Use Drawing to BOM](https://mst-us.ai/tools/drawing-to-bom/?utm_source=github&utm_medium=repository&utm_campaign=us_mechanical_tools)         |
+| BOM Check          | Find missing values and conflicting or repeated parts, edit without losing custom columns, export reviewed CSV | [Use BOM Check](https://mst-us.ai/tools/bom-check/?utm_source=github&utm_medium=repository&utm_campaign=us_mechanical_tools)                   |
+| Title Block Reader | Read labelled drawing fields, review sheets, export a drawing register                                         | [Use Title Block Reader](https://mst-us.ai/tools/title-block-reader/?utm_source=github&utm_medium=repository&utm_campaign=us_mechanical_tools) |
 
 No account, API key or installation is needed for the hosted tools. Source code is open under the MIT license.
 
+## Complete a drawing-to-BOM task
+
+[Run the complete bracket exercise](https://mst-us.ai/tools/drawing-to-bom/?utm_source=github&utm_medium=repository&utm_campaign=us_drawing_bom_lab#drawing-bom-lab) · [Download the input/output pack](https://mst-us.ai/tools/labs/drawing-bom/drawing-bom-lab.zip?utm_source=github&utm_medium=repository&utm_campaign=us_drawing_bom_lab) · [Read the handbook](https://mst-us.ai/tools/handbook/?utm_source=github&utm_medium=repository&utm_campaign=us_handbook)
+
+**Input:** an MST-created five-row drawing, a deliberately faulty transcription and a revised BOM. **Actions:** read the printed table, correct a misread identifier and quantities, remove an accidental duplicate, export and compare. **Output:** five reviewed rows and a diff with **1 added, 1 removed, 2 changed, 2 unchanged**. This does not infer a BOM from drawing geometry.
+
+[Drawing Register Compare](https://mst-us.ai/tools/drawing-register-compare/?utm_source=github&utm_medium=repository&utm_campaign=us_register_lab) adds a sixth utility: compare two drawing-sheet registers by drawing number and sheet; identify changed revision/title labels and export the results. Revision order and release approval are not inferred.
+
 ## Start with a worked example
 
-- **P&ID list reconciliation:** in [P&ID Tag Check](https://mst-us.ai/tools/pid-tag-check/#pid-example), select **Try a sample**, then **Read text**. Review the tags against the drawing and confirm the checkbox. Select **Use sample reference**, then **Compare tags**. Expect three identifiers on both lists, `XV-104` only in the drawing and `TT-103` only in the reference. `PT-101` appears twice on the drawing and once in the reference; these are printed occurrences, not equipment quantities. Export the comparison to inspect the complete result.
-- **BOM revision review:** in [BOM Compare](https://mst-us.ai/tools/bom-compare/#bom-example), select **Try sample revisions**, or download [revision A](https://mst-us.ai/tools/samples/bom-revision-a.csv) and [revision B](https://mst-us.ai/tools/samples/bom-revision-b.csv) and open them in the corresponding inputs. Confirm the column mapping and select **Compare BOMs**. Expect one added part, one removed part, two changed parts (material and quantity), and one unchanged part. Export the CSV to review all differences.
+- **P&ID list reconciliation:** in [P&ID Tag Check](https://mst-us.ai/tools/pid-tag-check/?utm_source=github&utm_medium=repository&utm_campaign=us_mechanical_tools#pid-example), select **Try a sample**, then **Read text**. Review the tags against the drawing and confirm the checkbox. Select **Use sample reference**, then **Compare tags**. Expect three identifiers on both lists, `XV-104` only in the drawing and `TT-103` only in the reference. `PT-101` appears twice on the drawing and once in the reference; these are printed occurrences, not equipment quantities. Export the comparison to inspect the complete result.
+- **BOM revision review:** in [BOM Compare](https://mst-us.ai/tools/bom-compare/?utm_source=github&utm_medium=repository&utm_campaign=us_mechanical_tools#bom-example), select **Try sample revisions**, or download [revision A](https://mst-us.ai/tools/samples/bom-revision-a.csv?utm_source=github&utm_medium=repository&utm_campaign=us_mechanical_tools) and [revision B](https://mst-us.ai/tools/samples/bom-revision-b.csv?utm_source=github&utm_medium=repository&utm_campaign=us_mechanical_tools) and open them in the corresponding inputs. Confirm the column mapping and select **Compare BOMs**. Expect one added part, one removed part, two changed parts (material and quantity), and one unchanged part. Export the CSV to review all differences.
 
 Both examples use synthetic data. Their illustrated guides describe expected findings; the tool computes actual results from the reviewed inputs. They are not customer cases or general-accuracy benchmarks.
 
@@ -92,10 +100,14 @@ The website's main navigation is maintained separately. Publishing this reposito
 
 ## Contribute
 
-Specific engineering problems, reproducible synthetic examples and PRs are welcome. Do not post customer drawings, proprietary part lists or credentials in public issues. Contact [MST for collaboration](https://mst-us.ai/contact/?intent=partner#partnerships).
+Specific engineering problems, reproducible synthetic examples and PRs are welcome. Do not post customer drawings, proprietary part lists or credentials in public issues. Contact [MST for collaboration](https://mst-us.ai/contact/?intent=partner&utm_source=github&utm_medium=repository&utm_campaign=us_mechanical_tools#partnerships).
 
-MST's [Mechanical Assembly AI](https://mst-us.ai/product/) addresses a separate P&ID-to-equipment-assembly workflow. These utilities do not contain that product engine.
+MST's [Mechanical Assembly AI](https://mst-us.ai/product/?utm_source=github&utm_medium=repository&utm_campaign=us_mechanical_tools) addresses a separate P&ID-to-equipment-assembly workflow. These utilities do not contain that product engine.
 
 ## License
 
 [MIT](LICENSE) for MST tool code and synthetic examples. Runtime libraries and language data retain their original licenses. The build bundles third-party notices at `/tools/licenses.html` and `/tools/THIRD_PARTY_NOTICES.txt`.
+
+## Keep acquisition measures separate
+
+With a repository administrator’s existing `gh` login, run `python3 scripts/github-traffic.py mst-sg/mechanical-design-tools --output /private/path/traffic-YYYY-MM-DD.json`. The script reads GitHub’s rolling 14-day views, clones and popular paths. Save weekly snapshots privately; deduplicate daily UTC rows for a 28-day count. Clones may include CI. Repository views, website GitHub-source page views and actual tool completion are different measures; this collector does not claim task completions. See [GitHub traffic API documentation](https://docs.github.com/en/rest/metrics/traffic).

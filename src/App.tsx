@@ -3,6 +3,7 @@ import { BomCompare } from "./CompareTool";
 import { BomCheckTool } from "./BomCheckTool";
 import { TitleTool } from "./TitleTool";
 import { PidTool } from "./PidTool";
+import { RegisterCompare } from "./RegisterCompare";
 import { tools } from "./catalog";
 import { useEffect, useState } from "react";
 export function App({ path }: { path: string }) {
@@ -79,6 +80,8 @@ export function App({ path }: { path: string }) {
               <BomCompare />
             ) : active.slug === "bom-check" ? (
               <BomCheckTool />
+            ) : active.slug === "drawing-register-compare" ? (
+              <RegisterCompare />
             ) : active.slug === "title-block-reader" ? (
               <TitleTool />
             ) : (
@@ -150,6 +153,8 @@ function ToolDirectory() {
         </p>
       </section>
       <section className="guide">
+        <h2>Learn a complete workflow</h2>
+        <div className="related-links"><a href="/tools/drawing-to-bom/#drawing-bom-lab">Drawing → checked BOM → revision review</a><a href="/tools/handbook/">Engineering tool handbook</a></div>
         <h2>Open code, online tools</h2>
         <p>
           Use these tools here, or inspect and adapt the MIT-licensed source on
@@ -169,6 +174,7 @@ function ToolSketch({ slug }: { slug: string }) {
       "M45 25h210v120H45zM45 58h210M45 88h210M45 118h210M88 25v120M172 25v120M278 77l19 19 42-46",
     "bom-compare":
       "M45 30h120v110H45zM215 30h120v110H215zM45 58h120M45 88h120M45 116h120M215 58h120M215 88h120M215 116h120M177 85h26m-8-7 8 7-8 7",
+    "drawing-register-compare": "M45 30h120v110H45zM215 30h120v110H215zM45 58h120M45 88h120M215 58h120M215 88h120M177 85h26m-8-7 8 7-8 7",
     "title-block-reader":
       "M35 20h210v130H35zM35 105h210M118 105v45M180 105v45M60 45h90M60 58h120M266 55h80M266 77h80M266 99h80M266 121h50",
     "pid-tag-check":
