@@ -97,3 +97,39 @@ test("privacy exclusion also suppresses real tool phases", async ({ page }) => {
   ).toBeVisible();
   expect(writes).toEqual([]);
 });
+
+test("new model handoff reports only bounded start, complete and export events", async ({
+  page,
+}) => {
+  await localOrigin(page);
+  const events: Record<string, unknown>[] = [];
+  page.on("request", (r) => {
+    if (r.method() === "POST") {
+      expect(isVisitRequest(r)).toBe(true);
+      events.push(r.postDataJSON());
+    }
+  });
+  await page.goto(origin + "/tools/bom-model-check/?mst_analytics_test=1");
+  await page.getByRole("button", { name: "Try handoff sample" }).click();
+  await page.getByRole("button", { name: "Check model handoff" }).click();
+  const pending = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export model review" }).click();
+  await pending;
+  await expect.poll(() => events.filter((x) => x.v === 2).length).toBe(3);
+  expect(events.filter((x) => x.v === 2).map((x) => x.action)).toEqual([
+    "tool_start",
+    "tool_complete",
+    "tool_export",
+  ]);
+  expect(
+    events
+      .filter((x) => x.v === 2)
+      .every(
+        (x) =>
+          x.tool === "bom-model-check" &&
+          x.traffic === "test" &&
+          x.mode === "sample",
+      ),
+  ).toBe(true);
+  expect(JSON.stringify(events)).not.toMatch(/BRK-100|bracket-B/);
+});

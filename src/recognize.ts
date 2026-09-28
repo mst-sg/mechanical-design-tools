@@ -118,6 +118,16 @@ export async function recognizeText(
     return {
       text: data.text,
       tsv: data.tsv ?? "",
+      // Return source-pixel positions, undoing OCR crop and rescaling.
+      words: wordsFromTsv(data.tsv ?? "").map((word) => ({
+        ...word,
+        x: x + (word.x * w) / canvas.width,
+        y: y + (word.y * h) / canvas.height,
+        width: (word.width * w) / canvas.width,
+        height: (word.height * h) / canvas.height,
+      })),
+      sourceWidth: image.width,
+      sourceHeight: image.height,
       layoutText: linesFromWords(wordsFromTsv(data.tsv ?? ""))
         .map((line) => line.map((w) => w.text).join(" "))
         .join("\n"),

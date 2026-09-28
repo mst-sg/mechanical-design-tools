@@ -31,7 +31,8 @@ function watch(page: Page, ocrDiagnostics?: string[], allowCancel = false) {
       new URL(r.url()).origin !== origin
     )
       errors.push("Unexpected egress: " + r.url());
-    if (r.method() !== "GET" && !isVisitRequest(r)) errors.push("Unexpected write: " + r.method());
+    if (r.method() !== "GET" && !isVisitRequest(r))
+      errors.push("Unexpected write: " + r.method());
   });
   page.on("response", (r) => {
     if (r.status() >= 400) errors.push(r.status() + " " + r.url());
@@ -268,13 +269,31 @@ test("P&ID built-in sample produces the worked-example findings after review", a
     .check();
   await page.getByRole("button", { name: "Compare tags" }).click();
   const csv = await exported(page, "Export tag comparison");
-  expect(csv.slice(1)).toEqual([
+  expect(csv.slice(1).map((r) => r.slice(0, 4))).toEqual([
     ["FT-102", "Matched", "1", "1"],
     ["P-101", "Matched", "1", "1"],
     ["PT-101", "Matched", "2", "1"],
     ["TT-103", "Only in list", "0", "1"],
     ["XV-104", "Only in drawing", "1", "0"],
   ]);
+  expect(csv.find((r) => r[0] === "PT-101")?.slice(4, 7)).toEqual([
+    "Synthetic pump loop P&ID.png",
+    "1",
+    "2",
+  ]);
+  expect(csv.find((r) => r[0] === "TT-103")?.slice(4)).toEqual([
+    "",
+    "",
+    "0",
+    "",
+  ]);
+  await page
+    .getByRole("button", { name: "Show PT-101 on drawing", exact: true })
+    .click();
+  await expect(page.locator(".tag-location-box")).toHaveCount(2);
+  await expect(
+    page.getByRole("status").filter({ hasText: "Located 2 OCR occurrences" }),
+  ).toBeVisible();
   await screenshot(page, `${info.project.name}-pid-worked-example`);
   await info.attach("reviewed-tesseract-diagnostics", {
     body: JSON.stringify(diagnostics),
@@ -332,19 +351,19 @@ test("P&ID new-image OCR and reviewed reference CSV produce exact tag difference
   ).toBeVisible();
   expect(Date.now() - t).toBeLessThan(2000);
   const csv = await exported(page, "Export tag comparison");
-  expect(csv.find((r) => r[0] === "PT-753")).toEqual([
+  expect(csv.find((r) => r[0] === "PT-753")?.slice(0, 4)).toEqual([
     "PT-753",
     "Matched",
     "2",
     "1",
   ]);
-  expect(csv.find((r) => r[0] === "XV-755")).toEqual([
+  expect(csv.find((r) => r[0] === "XV-755")?.slice(0, 4)).toEqual([
     "XV-755",
     "Only in drawing",
     "1",
     "0",
   ]);
-  expect(csv.find((r) => r[0] === "TT-756")).toEqual([
+  expect(csv.find((r) => r[0] === "TT-756")?.slice(0, 4)).toEqual([
     "TT-756",
     "Only in list",
     "0",
@@ -450,7 +469,7 @@ test("new tool discovery works without JavaScript and files without labels fabri
     }
   }
   await staticPage.goto(`${origin}/tools/`);
-  await expect(staticPage.locator(".tool-entry")).toHaveCount(6);
+  await expect(staticPage.locator(".tool-entry")).toHaveCount(7);
   await context.close();
   const errors = watch(page);
   await openTool(page, "/tools/title-block-reader/");

@@ -17,6 +17,15 @@ export const tools = [
     subtitle: "See what changed between two bills of materials.",
   },
   {
+    slug: "bom-model-check",
+    name: "BOM–Model Check",
+    eyebrow: "BOM + MODEL INDEX → HANDOFF REVIEW",
+    description:
+      "Match a BOM to model filenames and declared revisions. Find missing mappings, conflicting versions and files absent from your selection. Export a review list.",
+    subtitle:
+      "Check which parts are missing models before handing over an assembly.",
+  },
+  {
     slug: "drawing-to-bom",
     name: "Drawing to BOM",
     eyebrow: "DRAWING → SPREADSHEET",
