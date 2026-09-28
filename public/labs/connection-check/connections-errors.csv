@@ -1,0 +1,6 @@
+Connection ID,From tag,To tag
+C-01,V-101,F-999
+C-02,F-101,PT-101
+C-03,V-101,F-999
+C-04,PT-101,PT-101
+C-02,TK-101,

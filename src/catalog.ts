@@ -1,5 +1,12 @@
 export const tools = [
   {
+    slug: "connection-table-check",
+    name: "Connection Table Check",
+    eyebrow: "P&ID TAGS + FROM/TO CSV → REVIEW LIST",
+    description: "Compare a connection table with reviewed P&ID tags and optional BOM assignments. Find missing endpoints, repeated pairs and unmapped tags. Export source-record findings.",
+    subtitle: "Find disagreements between your P&ID tag list, connection table and BOM.",
+  },
+  {
     slug: "pid-tag-check",
     name: "P&ID Tag Check",
     eyebrow: "PRINTED TAGS → LIST COMPARISON",

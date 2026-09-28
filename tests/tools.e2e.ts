@@ -55,9 +55,12 @@ test("on-site directory, dropdown, mapping, comparison, download and invalid inp
     process.env.MST_TOOLS_BASE_URL ? 10000 : 5000,
   );
   await expect(page.locator(".tool-entry h2").nth(0)).toContainText(
-    "P&ID Tag Check",
+    "Connection Table Check",
   );
   await expect(page.locator(".tool-entry h2").nth(1)).toContainText(
+    "P&ID Tag Check",
+  );
+  await expect(page.locator(".tool-entry h2").nth(2)).toContainText(
     "BOM Compare",
   );
   await page.locator("header summary").click();

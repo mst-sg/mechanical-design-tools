@@ -98,7 +98,10 @@ test("privacy exclusion also suppresses real tool phases", async ({ page }) => {
   expect(writes).toEqual([]);
 });
 
-test("new model handoff reports only bounded start, complete and export events", async ({
+for (const [tool, sampleButton, runButton, exportButton] of [
+  ["bom-model-check", "Try handoff sample", "Check model handoff", "Export model review"],
+  ["connection-table-check", "Try faulty sample", "Check connection table", "Export connection review"],
+]) test(`${tool} reports only bounded start, complete and export events`, async ({
   page,
 }) => {
   await localOrigin(page);
@@ -109,11 +112,11 @@ test("new model handoff reports only bounded start, complete and export events",
       events.push(r.postDataJSON());
     }
   });
-  await page.goto(origin + "/tools/bom-model-check/?mst_analytics_test=1");
-  await page.getByRole("button", { name: "Try handoff sample" }).click();
-  await page.getByRole("button", { name: "Check model handoff" }).click();
+  await page.goto(origin + `/tools/${tool}/?mst_analytics_test=1`);
+  await page.getByRole("button", { name: sampleButton }).click();
+  await page.getByRole("button", { name: runButton }).click();
   const pending = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Export model review" }).click();
+  await page.getByRole("button", { name: exportButton }).click();
   await pending;
   await expect.poll(() => events.filter((x) => x.v === 2).length).toBe(3);
   expect(events.filter((x) => x.v === 2).map((x) => x.action)).toEqual([
@@ -126,10 +129,10 @@ test("new model handoff reports only bounded start, complete and export events",
       .filter((x) => x.v === 2)
       .every(
         (x) =>
-          x.tool === "bom-model-check" &&
+          x.tool === tool &&
           x.traffic === "test" &&
           x.mode === "sample",
       ),
   ).toBe(true);
-  expect(JSON.stringify(events)).not.toMatch(/BRK-100|bracket-B/);
+  expect(JSON.stringify(events)).not.toMatch(/BRK-100|bracket-B|F-999|V-101/);
 });

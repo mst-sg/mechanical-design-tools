@@ -99,7 +99,7 @@
     } catch (_) { /* Best-effort measurement, no application dependency. */ }
   }
   // Per-attempt random IDs live only in memory, never cookies or storage.
-  var toolNames = ["drawing-to-bom", "bom-compare", "bom-check", "title-block-reader", "pid-tag-check", "drawing-register-compare", "bom-model-check", "gds-handoff-manifest", "pid-bom-checker", "uhp-gas-stick-checklist", "pid-tag-parser", "mpw-node-selection-advisor", "mpw-alternative-route-finder", "report-revision-check", "ai-pid-feasibility-checker", "pdk-checklist", "mpw-shuttle-finder", "mpw-readiness-checker", "pid-assembly-intake", "obsolete-parts-rfq-cleaner", "mpw-planner", "package-selector", "mpw-procurement-timeline", "mpw-estimator", "mpw-rfq-pack", "bom-rfq-normalizer", "mpw-gds"], usageSent = 0;
+  var toolNames = ["drawing-to-bom", "bom-compare", "bom-check", "title-block-reader", "pid-tag-check", "drawing-register-compare", "bom-model-check", "connection-table-check", "gds-handoff-manifest", "pid-bom-checker", "uhp-gas-stick-checklist", "pid-tag-parser", "mpw-node-selection-advisor", "mpw-alternative-route-finder", "report-revision-check", "ai-pid-feasibility-checker", "pdk-checklist", "mpw-shuttle-finder", "mpw-readiness-checker", "pid-assembly-intake", "obsolete-parts-rfq-cleaner", "mpw-planner", "package-selector", "mpw-procurement-timeline", "mpw-estimator", "mpw-rfq-pack", "bom-rfq-normalizer", "mpw-gds"], usageSent = 0;
   function currentTool() {
     var match = win.location.pathname.match(/^\/(?:zh\/|es\/|ar\/|ja\/)?tools\/([a-z0-9-]+)\/(?:index\.html)?$/);
     return match && toolNames.indexOf(match[1]) !== -1 ? match[1] : null;

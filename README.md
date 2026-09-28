@@ -20,9 +20,23 @@ No account, API key or installation is needed for the hosted tools. Source code 
 
 [Drawing Register Compare](https://mst-us.ai/tools/drawing-register-compare/?utm_source=github&utm_medium=repository&utm_campaign=us_register_lab) compares drawing registers: compare two drawing-sheet registers by drawing number and sheet; identify changed revision/title labels and export the results. Revision order and release approval are not inferred.
 
+## From a community question to a usable check
+
+| Problem | Prepare and understand | Check and take away |
+| --- | --- | --- |
+| Exported BOM has repeated identities | [BOM configurations and export scope](https://mst-us.ai/solidworks-bom-part-numbers-configurations/?utm_source=github&utm_medium=repository&utm_campaign=us_practical_growth#duplicate-export) | BOM Check retains custom columns; BOM Compare exports revision differences. |
+| P&ID tags, connection records and assigned parts disagree | [Connection-table tutorial](https://mst-us.ai/how-to-read-a-pid/?utm_source=github&utm_medium=repository&utm_campaign=us_practical_growth#connection-table-check) | [Connection Table Check](https://mst-us.ai/tools/connection-table-check/?utm_source=github&utm_medium=repository&utm_campaign=us_practical_growth) finds specific source records and exports their findings. |
+| A BOM is sent with missing or stale model references | [Handoff exercise](https://mst-us.ai/tools/handbook/?utm_source=github&utm_medium=repository&utm_campaign=us_practical_growth#models) | [BOM–Model Check](https://mst-us.ai/tools/bom-model-check/?utm_source=github&utm_medium=repository&utm_campaign=us_practical_growth) exports identity/revision and optional file-presence results. |
+
+## Connection Table Check
+
+Load From tag / To tag records, a unique reviewed tag registry and optional Tag / Part number assignments. The tool flags missing or unknown endpoints, repeated IDs and directed endpoint pairs, self-pairs, unused tags, and missing or ambiguous BOM assignments. Matching preserves case and leading zeros. Findings name the source CSV and record; selecting one highlights the input. Changed inputs clear stale results. CSV export includes every finding.
+
+[Run the worked exercise](https://mst-us.ai/tools/handbook/?utm_source=github&utm_medium=repository&utm_campaign=us_practical_growth#connections) or [download the error/corrected pack](https://mst-us.ai/tools/labs/connection-check/connection-check-lab.zip?utm_source=github&utm_medium=repository&utm_campaign=us_practical_growth). The faulty sample computes 12 review items; the corrected sample computes zero list discrepancies. Parallel lines can legitimately repeat tag pairs. The tool does not infer pipe topology, check physical ports or grant engineering approval.
+
 ## BOM–Model Check
 
-The new `/tools/bom-model-check/` route accepts BOM and model-index CSVs with explicit part numbers, revisions and filenames. Optionally select the actual model files to check names and sizes. It finds missing mappings/files, revision conflicts, ambiguous candidates and unused records; source-row buttons and the CSV export retain evidence. It does not read native CAD contents or verify geometry. Try the handoff sample: one metadata match, four review records and one unused model.
+The new `/tools/bom-model-check/` route accepts BOM and model-index CSVs with explicit part numbers, revisions and filenames. Optionally select the actual model files to check names and sizes. It finds missing mappings/files, revision conflicts, ambiguous candidates and unused records; source-row buttons and the CSV export retain evidence. It does not read native CAD contents or verify geometry. Try the handoff sample: one metadata match, four review records and one unused model. The [complete correction pack](https://mst-us.ai/tools/labs/model-handoff/model-handoff-lab.zip?utm_source=github&utm_medium=repository&utm_campaign=us_practical_growth) includes explicit synthetic release-owner decisions and corrected tables: five metadata matches, with actual file presence still unchecked.
 
 ## Start with a worked example
 
@@ -67,7 +81,7 @@ This version supports tags such as `PT-101`, `P-002A` and `TK-12`: one letter pr
 
 ## Privacy
 
-Selected files and recognized content are handled in browser memory. No upload API, inference service, document logging or file persistence is used. The MST-hosted site sends one same-origin page-view event containing only the public tool path, source category and random event ID. The server derives a daily salted visit identifier; it never receives tool inputs or file contents through this collector. Internal/QA events are excluded from audience totals; GPC and DNT disable it. The hosted Privacy Notice describes the 35-day event retention. Optional Google Analytics is not loaded on tool pages. Refreshing clears the working files and results. Recognition workers and language models are served from the same website. The hosting server can receive ordinary page/asset request metadata, but not drawing/BOM contents.
+Selected files and recognized content are handled in browser memory. No upload API, inference service, document logging or file persistence is used. The MST-hosted site sends bounded same-origin page-view and start/complete/export events containing the public tool path, source category, sample/provided mode and random event/run IDs. The server derives a daily salted visit identifier; it never receives tool inputs or file contents through this collector. Internal/QA events are excluded from audience totals; GPC and DNT disable it. The hosted Privacy Notice describes the 35-day event retention. Optional Google Analytics is not loaded on tool pages. Refreshing clears the working files and results. Recognition workers and language models are served from the same website. The hosting server can receive ordinary page/asset request metadata, but not drawing/BOM contents.
 
 The hosted pages set a restrictive content policy for scripts, workers and connections. Do not add third-party analytics or remote inference while retaining this local-processing claim.
 
