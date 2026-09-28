@@ -83,6 +83,21 @@ test("uploaded records, manual mapping and bad-input recovery use the current in
 test("the handbook links downloadable exercises to working checkers", async ({ page }) => {
   await page.goto("/tools/handbook/?mst_analytics_test=1#connections");
   await expect(page.locator("#connections")).toBeVisible();
+  for (const asset of [
+    "connection-check/connection-review-illustration.webp",
+    "connection-check/review-result.png",
+    "connection-check/review-corrected.png",
+    "model-handoff/model-reference-illustration.webp",
+    "model-handoff/review-before.png",
+    "model-handoff/review-after.png",
+  ]) {
+    const img = page.locator(`img[src="/tools/labs/${asset}"]`);
+    await img.scrollIntoViewIfNeeded();
+    await expect.poll(() => img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0)).toBe(true);
+    await expect(img).toHaveAttribute("alt", /.+/);
+    await expect(img.locator("..")).toHaveAttribute("href", /\.png$/);
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
   const pending = page.waitForEvent("download");
   await page.getByRole("link", { name: "Download the complete connection exercise" }).click();
   const download = await pending;
