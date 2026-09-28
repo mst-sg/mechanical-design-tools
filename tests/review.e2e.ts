@@ -447,7 +447,7 @@ test("new tool discovery works without JavaScript and files without labels fabri
   );
   const context = await browser.newContext({ javaScriptEnabled: false });
   const staticPage = await context.newPage();
-  for (const slug of ["bom-check", "title-block-reader", "pid-tag-check"]) {
+  for (const slug of ["bom-check", "title-block-reader", "pid-tag-check", "connection-table-check"]) {
     const r = await staticPage.goto(`${origin}/tools/${slug}/`);
     expect(r?.status()).toBe(200);
     await expect(staticPage.locator("h1")).toHaveCount(1);
@@ -469,7 +469,7 @@ test("new tool discovery works without JavaScript and files without labels fabri
     }
   }
   await staticPage.goto(`${origin}/tools/`);
-  await expect(staticPage.locator(".tool-entry")).toHaveCount(7);
+  await expect(staticPage.locator(".tool-entry")).toHaveCount(8);
   await context.close();
   const errors = watch(page);
   await openTool(page, "/tools/title-block-reader/");
