@@ -18,3 +18,9 @@ public/labs/drawing-bom/LICENSE
 public/labs/drawing-bom/handbook.html
 public/labs/drawing-bom/SHA256SUMS
 public/labs/drawing-bom/*.zip
+public/labs/connection-check/LICENSE
+public/labs/connection-check/SHA256SUMS
+public/labs/connection-check/*.zip
+public/labs/model-handoff/LICENSE
+public/labs/model-handoff/SHA256SUMS
+public/labs/model-handoff/*.zip

@@ -5,6 +5,7 @@ import { TitleTool } from "./TitleTool";
 import { PidTool } from "./PidTool";
 import { RegisterCompare } from "./RegisterCompare";
 import { BomModelTool } from "./BomModelTool";
+import { ConnectionTableTool } from "./ConnectionTableTool";
 import { tools } from "./catalog";
 import { useEffect, useState } from "react";
 export function App({ path }: { path: string }) {
@@ -82,6 +83,8 @@ export function App({ path }: { path: string }) {
               <BomCompare />
             ) : active.slug === "bom-model-check" ? (
               <BomModelTool />
+            ) : active.slug === "connection-table-check" ? (
+              <ConnectionTableTool />
             ) : active.slug === "bom-check" ? (
               <BomCheckTool />
             ) : active.slug === "drawing-register-compare" ? (
@@ -162,6 +165,8 @@ function ToolDirectory() {
           <a href="/tools/handbook/#drawing-bom">
             Drawing → checked BOM → revision review
           </a>
+          <a href="/tools/handbook/#connections">P&amp;ID tags → connection table → review list</a>
+          <a href="/tools/handbook/#models">BOM → model index → corrected handoff</a>
           <a href="/tools/handbook/">Engineering tool handbook</a>
         </div>
         <h2>Open code, online tools</h2>
@@ -177,6 +182,7 @@ function ToolDirectory() {
 
 function ToolSketch({ slug }: { slug: string }) {
   const paths: Record<string, string> = {
+    "connection-table-check": "M12 20h18v18H12z M62 20h18v18H62z M30 29h32 M71 38v22H21V38 M46 21v16",
     "bom-model-check":
       "M35 30h130v115H35zM35 60h130M35 90h130M35 120h130M200 80h30M255 55l45-25 45 25v55l-45 25-45-25zM255 55l45 25 45-25M300 80v55",
     "drawing-to-bom":
