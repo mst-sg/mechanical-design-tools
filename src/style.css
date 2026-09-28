@@ -1398,3 +1398,10 @@ pre {
 .table-scroll {
   position: relative;
 }
+/* Evidence and file handoff controls reuse the established tool layout. */
+.tag-location-box { position: absolute; border: 2px solid #246650; background: #63c9a130; pointer-events: none; outline: 2px solid white; min-width: 3px; min-height: 3px; box-sizing: border-box; }
+.tag-locations { padding-block: 8px; border-block: 1px solid var(--line, #d3d6cb); margin-bottom: 14px; }
+.tag-locations .row-actions { flex-wrap: wrap; gap: 8px 16px; }
+.source-actions { display: flex; flex-direction: column; align-items: flex-start; margin-top: 8px; }
+.model-files { margin-top: 20px; }
+.reader-stack:focus-visible { outline: 2px solid #325b43; outline-offset: 4px; }

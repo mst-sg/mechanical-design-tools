@@ -2,7 +2,7 @@ import { startUsage, type UsageMode, type UsageRun } from "./usage";
 import { useEffect, useRef, useState, type PointerEvent } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { fileKind, loadImage, openPdf, pdfPage, type Drawing } from "./files";
-import { fullCrop, type Crop } from "./types";
+import { fullCrop, type Crop, type Word } from "./types";
 import { recognizeText } from "./recognize";
 export type ReadSheet = {
   mode: UsageMode;
@@ -11,6 +11,9 @@ export type ReadSheet = {
   file: string;
   page: number;
   text: string;
+  words?: Word[];
+  sourceWidth?: number;
+  sourceHeight?: number;
 };
 type SourceFile = { id: string; file: File; mode: UsageMode };
 type Props = {
@@ -19,6 +22,7 @@ type Props = {
   onInvalidate: () => void;
   queue?: boolean;
   recognitionMode?: "text" | "tags";
+  highlight?: { sourceId: string; tag: string; boxes: Crop[] } | null;
 };
 export function DrawingReader({
   sample,
@@ -26,6 +30,7 @@ export function DrawingReader({
   onInvalidate,
   queue = false,
   recognitionMode = "text",
+  highlight,
 }: Props) {
   const [files, setFiles] = useState<SourceFile[]>([]),
     [selected, setSelected] = useState(0);
@@ -201,6 +206,9 @@ export function DrawingReader({
           file: drawing.name,
           page,
           text: arranged,
+          words: result.words,
+          sourceWidth: result.sourceWidth,
+          sourceHeight: result.sourceHeight,
         });
       }
     } catch (e) {
@@ -373,7 +381,29 @@ export function DrawingReader({
                 height: crop.height + "%",
               }}
             />
+            {highlight?.sourceId === `${source.current?.id}:${page}` &&
+              highlight.boxes.map((box, i) => (
+                <div
+                  key={i}
+                  className="tag-location-box"
+                  aria-label={`${highlight.tag} occurrence ${i + 1}`}
+                  style={{
+                    left: box.left + "%",
+                    top: box.top + "%",
+                    width: box.width + "%",
+                    height: box.height + "%",
+                  }}
+                />
+              ))}
           </div>
+          {highlight?.sourceId === `${source.current?.id}:${page}` && (
+            <p className="notice" role="status">
+              Located {highlight.boxes.length} OCR occurrence
+              {highlight.boxes.length === 1 ? "" : "s"} of {highlight.tag} on
+              page {page}. Outlines show recognized text; check the original
+              drawing.
+            </p>
+          )}
           <div className="preview-actions">
             <button
               className="text-button"

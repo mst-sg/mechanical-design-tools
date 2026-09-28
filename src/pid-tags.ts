@@ -21,15 +21,20 @@ export function prefixesFrom(text: string): string[] {
   return values.sort((a, b) => b.length - a.length);
 }
 export function suggestTags(text: string, prefixText: string): string[] {
+  return tagSpans(text, prefixText).map((match) => match.tag);
+}
+export function tagSpans(text: string, prefixText: string) {
   const prefixes = prefixesFrom(prefixText);
   // Prefix + numeric sequence + optional suffix only. Preserve leading zeros.
   const pattern = new RegExp(
     `(?<![A-Z0-9_–—-])(${prefixes.join("|")})[ \\t]*(?:[-–—][ \\t]*|[ \\t]+)([0-9]{1,6}[A-Z]?)(?![A-Z0-9_–—-])`,
     "gi",
   );
-  return [...text.matchAll(pattern)].map(
-    (m) => `${m[1].toUpperCase()}-${m[2].toUpperCase()}`,
-  );
+  return [...text.matchAll(pattern)].map((m) => ({
+    tag: `${m[1].toUpperCase()}-${m[2].toUpperCase()}`,
+    start: m.index,
+    end: m.index + m[0].length,
+  }));
 }
 export function normalizeTag(value: string) {
   return value
@@ -91,17 +96,15 @@ export function compareTags(
   };
   const a = count(drawing),
     b = count(reference);
-  return [...new Set([...a.keys(), ...b.keys()])]
-    .sort()
-    .map((tag) => ({
-      tag,
-      status:
-        a.has(tag) && b.has(tag)
-          ? "Matched"
-          : a.has(tag)
-            ? "Only in drawing"
-            : "Only in list",
-      drawingCount: a.get(tag) || 0,
-      listCount: b.get(tag) || 0,
-    }));
+  return [...new Set([...a.keys(), ...b.keys()])].sort().map((tag) => ({
+    tag,
+    status:
+      a.has(tag) && b.has(tag)
+        ? "Matched"
+        : a.has(tag)
+          ? "Only in drawing"
+          : "Only in list",
+    drawingCount: a.get(tag) || 0,
+    listCount: b.get(tag) || 0,
+  }));
 }

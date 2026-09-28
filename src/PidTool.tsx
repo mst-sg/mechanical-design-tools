@@ -10,12 +10,20 @@ import {
 } from "./pid-tags";
 import { downloadCsv, toCsv } from "./csv";
 import { readUtf8 } from "./text-file";
+import { locateTags, locationText } from "./tag-locations";
+import type { Crop } from "./types";
 const sample = {
   url: "/tools/samples/pid-tags.png",
   name: "Synthetic pump loop P&ID.png",
   crop: { left: 0, top: 0, width: 100, height: 100 },
 };
 export function PidTool() {
+  const sourcePanel = useRef<HTMLDivElement>(null);
+  const [highlight, setHighlight] = useState<{
+    sourceId: string;
+    tag: string;
+    boxes: Crop[];
+  } | null>(null);
   const referenceIsSample = useRef(false);
   const [prefixes, setPrefixes] = useState(defaultPrefixes),
     [sheet, setSheet] = useState<ReadSheet | null>(null);
@@ -28,6 +36,7 @@ export function PidTool() {
   const [filter, setFilter] = useState("All"),
     [loading, setLoading] = useState(false);
   function invalidate() {
+    setHighlight(null);
     setSheet(null);
     setDrawing("");
     setReviewed(false);
@@ -36,6 +45,7 @@ export function PidTool() {
     setNote("");
   }
   function receive(next: ReadSheet) {
+    setHighlight(null);
     setSheet(next);
     setResult(null);
     setReviewed(false);
@@ -77,6 +87,30 @@ export function PidTool() {
   }
   const visible =
     result?.filter((r) => filter === "All" || r.status === filter) || [];
+  const locations = (() => {
+    try {
+      return sheet
+        ? locateTags(
+            sheet.words ?? [],
+            prefixes,
+            sheet.sourceWidth ?? 0,
+            sheet.sourceHeight ?? 0,
+          )
+        : [];
+    } catch {
+      return [];
+    }
+  })();
+  function locate(tag: string) {
+    if (!sheet) return;
+    setHighlight({
+      sourceId: sheet.sourceId,
+      tag,
+      boxes: locations.filter((l) => l.tag === tag).map((l) => l.box),
+    });
+    sourcePanel.current?.focus({ preventScroll: true });
+    sourcePanel.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
   return (
     <>
       <div className="compare-toolbar">
@@ -90,7 +124,7 @@ export function PidTool() {
         </a>
       </div>
       <div className="workspace">
-        <div className="reader-stack">
+        <div className="reader-stack" ref={sourcePanel} tabIndex={-1}>
           <div className="panel">
             <label className="field-label">
               Prefixes to look for
@@ -99,6 +133,7 @@ export function PidTool() {
                 value={prefixes}
                 onChange={(e) => {
                   setPrefixes(e.target.value);
+                  setHighlight(null);
                   setDrawing("");
                   setReviewed(false);
                   setResult(null);
@@ -124,6 +159,7 @@ export function PidTool() {
             recognitionMode="tags"
             onResult={receive}
             onInvalidate={invalidate}
+            highlight={highlight}
           />
         </div>
         <section className="panel" aria-labelledby="tag-review">
@@ -145,6 +181,7 @@ export function PidTool() {
               placeholder="PT-101&#10;P-002A"
               onChange={(e) => {
                 setDrawing(e.target.value);
+                setHighlight(null);
                 setReviewed(false);
                 setResult(null);
               }}
@@ -154,6 +191,28 @@ export function PidTool() {
               also paste a list without using OCR.
             </span>
           </label>
+          {locations.length > 0 && (
+            <div className="tag-locations">
+              <p className="hint">
+                Locate recognized tags on this page before confirming. Added or
+                corrected tags may have no OCR location.
+              </p>
+              <div className="row-actions">
+                {[...new Set(locations.map((l) => l.tag))]
+                  .slice(0, 60)
+                  .map((tag) => (
+                    <button
+                      className="text-button"
+                      key={tag}
+                      onClick={() => locate(tag)}
+                    >
+                      Locate {tag} (
+                      {locations.filter((l) => l.tag === tag).length})
+                    </button>
+                  ))}
+              </div>
+            </div>
+          )}
           <label className="review-check">
             <input
               type="checkbox"
@@ -262,12 +321,24 @@ export function PidTool() {
                       "Status",
                       "Drawing occurrences",
                       "Reference occurrences",
+                      "Source file",
+                      "Source page",
+                      "OCR located occurrences",
+                      "OCR locations on page",
                     ],
                     ...result.map((r) => [
                       r.tag,
                       r.status,
                       r.drawingCount,
                       r.listCount,
+                      r.drawingCount && sheet ? sheet.file : "",
+                      r.drawingCount && sheet ? sheet.page : "",
+                      r.drawingCount
+                        ? locations.filter((l) => l.tag === r.tag).length
+                        : 0,
+                      r.drawingCount
+                        ? locationText(locations.filter((l) => l.tag === r.tag))
+                        : "",
                     ]),
                   ]),
                   "pid-tag-comparison.csv",
@@ -312,6 +383,7 @@ export function PidTool() {
                   <th>Result</th>
                   <th>On drawing</th>
                   <th>In reference</th>
+                  <th>Source evidence</th>
                 </tr>
               </thead>
               <tbody>
@@ -327,6 +399,32 @@ export function PidTool() {
                     </td>
                     <td>{r.drawingCount}</td>
                     <td>{r.listCount}</td>
+                    <td>
+                      {r.drawingCount && sheet ? (
+                        <>
+                          {sheet.file} · page {sheet.page}
+                          <br />
+                          {locations.some((l) => l.tag === r.tag) ? (
+                            <button
+                              className="text-button"
+                              onClick={() => locate(r.tag)}
+                            >
+                              Show {r.tag} on drawing
+                            </button>
+                          ) : (
+                            <span className="hint">
+                              No OCR location — check manually
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <span className="hint">
+                          {r.drawingCount
+                            ? "Pasted list — no drawing source"
+                            : "Not on reviewed drawing list"}
+                        </span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
