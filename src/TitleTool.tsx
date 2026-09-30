@@ -41,6 +41,7 @@ export function TitleTool() {
   }
   function add() {
     if (!sheet || !reviewed || !values.drawingNumber.trim()) return;
+    sheet.usage?.complete();
     const entry = { ...sheet, values: { ...values } };
     setEntries((prev) =>
       prev.some((e) => e.sourceId === sheet.sourceId)
@@ -139,6 +140,7 @@ export function TitleTool() {
                   ]),
                 ]),
                 "drawing-register.csv",
+                () => entries.forEach((entry) => entry.usage?.export()),
               )
             }
           >
