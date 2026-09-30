@@ -97,7 +97,11 @@ export function exportBom(rows: BomRow[]): string {
     ...rows.map((r) => fields.map((f) => r[f])),
   ]);
 }
-export function downloadCsv(text: string, name: string) {
+export function downloadCsv(
+  text: string,
+  name: string,
+  onExport: () => void = exportUsage,
+) {
   const a = document.createElement("a");
   const url = URL.createObjectURL(
     new Blob([text], { type: "text/csv;charset=utf-8" }),
@@ -105,7 +109,7 @@ export function downloadCsv(text: string, name: string) {
   a.href = url;
   a.download = name;
   a.click();
-  exportUsage();
+  onExport();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 const aliases: Record<BomField, string[]> = {

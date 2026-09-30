@@ -1,4 +1,4 @@
-import { startUsage, type UsageMode } from "./usage";
+import { startUsage, type UsageMode, type UsageRun } from "./usage";
 import { BomLabGuide } from "./BomLabGuide";
 import { useEffect, useRef, useState, type PointerEvent } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
@@ -27,6 +27,7 @@ export function DrawingToBom() {
     [page, setPage] = useState(1),
     [pages, setPages] = useState(0);
   const inputMode = useRef<UsageMode>("provided");
+  const currentUsage = useRef<UsageRun | null>(null);
   const pdf = useRef<PDFDocumentProxy | null>(null),
     controller = useRef<AbortController | null>(null),
     generation = useRef(0),
@@ -47,6 +48,7 @@ export function DrawingToBom() {
   );
   const unavailable = busy || loading;
   function resetResults() {
+    currentUsage.current = null;
     setRows([]);
     setText("");
     setNote("");
@@ -137,6 +139,7 @@ export function DrawingToBom() {
     if (!drawing) return;
     resetResults();
     const usage = startUsage(inputMode.current);
+    currentUsage.current = usage;
     setBusy(true);
     const id = ++generation.current;
     const control = new AbortController();
@@ -159,7 +162,8 @@ export function DrawingToBom() {
         setNote(result.message);
       }
     } catch (e) {
-      if (id === generation.current)
+      if (id === generation.current) {
+        currentUsage.current = null;
         setError(
           control.signal.aborted
             ? "Recognition stopped. Try a smaller crop or a sharper image."
@@ -167,6 +171,7 @@ export function DrawingToBom() {
               ? e.message
               : "Recognition failed. Try again with a smaller image.",
         );
+      }
     } finally {
       clearTimeout(timeout);
       if (id === generation.current) {
@@ -176,6 +181,7 @@ export function DrawingToBom() {
     }
   }
   function cancel() {
+    currentUsage.current = null;
     generation.current++;
     controller.current?.abort();
     controller.current = null;
@@ -214,6 +220,25 @@ export function DrawingToBom() {
     setRows((prev) =>
       prev.map((r) => (r.id === id ? { ...r, [field]: value } : r)),
     );
+  }
+  function exportRows() {
+    const usable = rows.some(
+      (row) =>
+        (row.partNumber.trim() || row.description.trim()) &&
+        numericQuantity(row.quantity) !== null,
+    );
+    downloadCsv(exportBom(rows), "bom-reviewed.csv", () => {
+      if (!usable) {
+        // Keep an already completed OCR result exportable without treating
+        // blank or unfinished manual entries as a newly completed result.
+        currentUsage.current?.export();
+        return;
+      }
+      const usage = currentUsage.current ?? startUsage(inputMode.current);
+      currentUsage.current = usage;
+      usage.complete();
+      usage.export();
+    });
   }
   return (
     <>
@@ -501,7 +526,7 @@ export function DrawingToBom() {
             <button
               className="button primary"
               disabled={!rows.length || unavailable}
-              onClick={() => downloadCsv(exportBom(rows), "bom-reviewed.csv")}
+              onClick={exportRows}
             >
               Export CSV ↓
             </button>
