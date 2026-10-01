@@ -6,6 +6,8 @@ import { PidTool } from "./PidTool";
 import { RegisterCompare } from "./RegisterCompare";
 import { BomModelTool } from "./BomModelTool";
 import { ConnectionTableTool } from "./ConnectionTableTool";
+import { LineListTool } from "./LineListTool";
+import { DeliveryPackageTool } from "./DeliveryPackageTool";
 import { tools } from "./catalog";
 import { useEffect, useState } from "react";
 export function App({ path }: { path: string }) {
@@ -77,7 +79,11 @@ export function App({ path }: { path: string }) {
             aria-busy={!ready}
             aria-label={`${active.name} controls`}
           >
-            {drawing ? (
+            {active.slug === "line-list-check" ? (
+              <LineListTool />
+            ) : active.slug === "delivery-package-check" ? (
+              <DeliveryPackageTool />
+            ) : drawing ? (
               <DrawingToBom />
             ) : compare ? (
               <BomCompare />
@@ -167,6 +173,8 @@ function ToolDirectory() {
           </a>
           <a href="/tools/handbook/#connections">P&amp;ID tags → connection table → review list</a>
           <a href="/tools/handbook/#models">BOM → model index → corrected handoff</a>
+          <a href="/tools/handbook/#line-lists">Line list → reviewed P&amp;ID records → discrepancies</a>
+          <a href="/tools/handbook/#delivery-package">Required deliverables → folder check</a>
           <a href="/tools/handbook/">Engineering tool handbook</a>
         </div>
         <h2>Open code, online tools</h2>
@@ -182,6 +190,8 @@ function ToolDirectory() {
 
 function ToolSketch({ slug }: { slug: string }) {
   const paths: Record<string, string> = {
+    "line-list-check": "M30 30h125v110H30zM30 58h125M30 90h125M70 30v110M215 50h130v80H215zM215 80h130M265 50v80M172 85h24m-8-8 8 8-8 8",
+    "delivery-package-check": "M30 35h105v100H30zM48 58h65M48 80h65M48 102h45M195 55h52l16 15h88v70H195zM235 104l18 18 42-42",
     "connection-table-check": "M12 20h18v18H12z M62 20h18v18H62z M30 29h32 M71 38v22H21V38 M46 21v16",
     "bom-model-check":
       "M35 30h130v115H35zM35 60h130M35 90h130M35 120h130M200 80h30M255 55l45-25 45 25v55l-45 25-45-25zM255 55l45 25 45-25M300 80v55",

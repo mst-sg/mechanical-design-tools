@@ -22,4 +22,14 @@ for slug in ['connection-check', 'model-handoff']:
  with zipfile.ZipFile(lab/(slug+'-lab.zip'),'w',zipfile.ZIP_DEFLATED) as z:
   for p in files+[lab/'SHA256SUMS']:
    info=zipfile.ZipInfo(slug+'-lab/'+p.name,(2026,9,28,0,0,0));info.compress_type=zipfile.ZIP_DEFLATED;z.writestr(info,p.read_bytes())
+print('Packed',slug,len(files)+1,'exercise files')
+
+for slug in ['line-list', 'delivery-package']:
+ lab=root/'public/labs'/slug
+ (lab/'LICENSE').write_bytes((root/'LICENSE').read_bytes())
+ files=sorted(p for p in lab.rglob('*') if p.is_file() and p.suffix!='.zip' and p.name!='SHA256SUMS')
+ (lab/'SHA256SUMS').write_text(''.join(hashlib.sha256(p.read_bytes()).hexdigest()+'  '+str(p.relative_to(lab))+'\n' for p in files))
+ with zipfile.ZipFile(lab/(slug+'-lab.zip'),'w',zipfile.ZIP_DEFLATED) as z:
+  for p in files+[lab/'SHA256SUMS']:
+   info=zipfile.ZipInfo(slug+'-lab/'+str(p.relative_to(lab)),(2026,10,1,0,0,0));info.compress_type=zipfile.ZIP_DEFLATED;z.writestr(info,p.read_bytes())
  print('Packed',slug,len(files)+1,'exercise files')

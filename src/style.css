@@ -1409,3 +1409,5 @@ pre {
 .connection-inputs > :last-child { grid-column: 1 / -1; }
 .connection-inputs textarea { min-width: 0; }
 .connection-results .table-scroll td { overflow-wrap: anywhere; }
+
+.package-files { padding-inline-start: 1.5rem; overflow-wrap: anywhere; font-size: 0.875rem; }
