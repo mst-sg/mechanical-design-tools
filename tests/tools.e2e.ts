@@ -54,15 +54,11 @@ test("on-site directory, dropdown, mapping, comparison, download and invalid inp
   expect(Date.now() - started).toBeLessThan(
     process.env.MST_TOOLS_BASE_URL ? 10000 : 5000,
   );
-  await expect(page.locator(".tool-entry h2").nth(0)).toContainText(
-    "Connection Table Check",
-  );
-  await expect(page.locator(".tool-entry h2").nth(1)).toContainText(
-    "P&ID Tag Check",
-  );
-  await expect(page.locator(".tool-entry h2").nth(2)).toContainText(
-    "BOM Compare",
-  );
+  await expect(page.locator(".tool-entry h2")).toHaveText([
+    "Line List Check ↗", "Delivery Package Check ↗", "Connection Table Check ↗",
+    "P&ID Tag Check ↗", "BOM Compare ↗", "BOM–Model Check ↗", "Drawing to BOM ↗",
+    "BOM Check ↗", "Title Block Reader ↗", "Drawing Register Compare ↗",
+  ]);
   await page.locator("header summary").click();
   await page
     .locator("header")

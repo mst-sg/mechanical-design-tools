@@ -1,5 +1,19 @@
 export const tools = [
   {
+    slug: "line-list-check",
+    name: "Line List Check",
+    eyebrow: "LINE LIST + REVIEWED P&ID RECORDS → DISCREPANCIES",
+    description: "Compare a line list with reviewed P&ID records. Find missing line numbers, duplicate identities and differences in endpoints, size, piping class or service. Review and export CSV.",
+    subtitle: "Reconcile your line list with records checked against the P&ID.",
+  },
+  {
+    slug: "delivery-package-check",
+    name: "Delivery Package Check",
+    eyebrow: "REQUIRED FILES + LOCAL FOLDER → HANDOFF REVIEW",
+    description: "Check a drawing delivery manifest against selected local files. Find missing PDFs or STEP files, empty files and ambiguous names. Review and export findings without uploading documents.",
+    subtitle: "Find missing drawing and model files before sending a delivery package.",
+  },
+  {
     slug: "connection-table-check",
     name: "Connection Table Check",
     eyebrow: "P&ID TAGS + FROM/TO CSV → REVIEW LIST",

@@ -28,6 +28,18 @@ No account, API key or installation is needed for the hosted tools. Source code 
 | P&ID tags, connection records and assigned parts disagree | [Connection-table tutorial](https://mst-us.ai/how-to-read-a-pid/?utm_source=github&utm_medium=repository&utm_campaign=us_practical_growth#connection-table-check) | [Connection Table Check](https://mst-us.ai/tools/connection-table-check/?utm_source=github&utm_medium=repository&utm_campaign=us_practical_growth) finds specific source records and exports their findings. |
 | A BOM is sent with missing or stale model references | [Handoff exercise](https://mst-us.ai/tools/handbook/?utm_source=github&utm_medium=repository&utm_campaign=us_practical_growth#models) | [BOM–Model Check](https://mst-us.ai/tools/bom-model-check/?utm_source=github&utm_medium=repository&utm_campaign=us_practical_growth) exports identity/revision and optional file-presence results. |
 
+## Line List Check
+
+Compare a line-list CSV with records reviewed against a P&ID. Map line identity and optional endpoints, size, piping class and service in both inputs. Find missing identities, duplicate records, blank attributes and differing values. Matching preserves case, leading zeros and endpoint order; size labels are not converted. Review the source records before exporting. This tool compares prepared lists, not drawing geometry.
+
+[Run the line-list exercise](https://mst-us.ai/tools/handbook/#line-lists) or [open Line List Check](https://mst-us.ai/tools/line-list-check/). The faulty sample has four specific discrepancies; the corrected sample has none across the selected fields.
+
+## Delivery Package Check
+
+Compare a required-file manifest with selected file names and sizes. Check missing PDF/STEP deliverables, zero-byte files, duplicate requirements and ambiguous filenames. Choose a folder to match relative paths. File contents, actual revisions and native CAD references are not read or approved. Changing inputs invalidates the result; a review checkbox precedes export.
+
+[Run the package exercise](https://mst-us.ai/tools/handbook/#delivery-package) or [open Delivery Package Check](https://mst-us.ai/tools/delivery-package-check/). Downloadable teaching files reproduce an empty STEP, missing PDF and extra note. The corrected set produces zero manifest discrepancies; its fixture contents are explicitly not production engineering deliverables.
+
 ## Connection Table Check
 
 Load From tag / To tag records, a unique reviewed tag registry and optional Tag / Part number assignments. The tool flags missing or unknown endpoints, repeated IDs and directed endpoint pairs, self-pairs, unused tags, and missing or ambiguous BOM assignments. Matching preserves case and leading zeros. Findings name the source CSV and record; selecting one highlights the input. Changed inputs clear stale results. CSV export includes every finding.

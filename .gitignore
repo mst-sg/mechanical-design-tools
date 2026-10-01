@@ -24,3 +24,9 @@ public/labs/connection-check/*.zip
 public/labs/model-handoff/LICENSE
 public/labs/model-handoff/SHA256SUMS
 public/labs/model-handoff/*.zip
+
+# These labs are generated reproducibly; retain only actual browser screenshots.
+public/labs/line-list/*
+!public/labs/line-list/review-*.png
+public/labs/delivery-package/*
+!public/labs/delivery-package/review-*.png
