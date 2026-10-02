@@ -104,6 +104,7 @@ export function App({ path }: { path: string }) {
         ) : (
           <ToolDirectory />
         )}
+        {active && <EngineeringDemo />}
       </main>
       <footer className="shell footer">
         <div>
@@ -130,6 +131,26 @@ export function App({ path }: { path: string }) {
         </div>
       </footer>
     </>
+  );
+}
+function EngineeringDemo() {
+  return (
+    <section className="guide" aria-labelledby="engineering-demo-title">
+      <h2 id="engineering-demo-title">Explore equipment assembly with MST</h2>
+      <p>
+        See how MST assembles configured equipment from your approved component
+        models. Watch the SOLIDWORKS recording, then discuss the workflow your
+        engineering team needs.
+      </p>
+      <div className="related-links">
+        <a href="https://mst-us.ai/product/#equipment-assembly-demo">
+          Watch the assembly demo →
+        </a>
+        <a href="https://mst-us.ai/contact/?intent=demo">
+          Request a demo for your team →
+        </a>
+      </div>
+    </section>
   );
 }
 function ToolDirectory() {
