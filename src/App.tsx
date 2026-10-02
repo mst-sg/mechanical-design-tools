@@ -146,7 +146,7 @@ function EngineeringDemo() {
         <a href="https://mst-us.ai/product/#equipment-assembly-demo">
           Watch the assembly demo →
         </a>
-        <a href="https://mst-us.ai/contact/?intent=demo">
+        <a href="https://mst-us.ai/contact/?intent=challenge">
           Request a demo for your team →
         </a>
       </div>
