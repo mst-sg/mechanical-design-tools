@@ -456,7 +456,7 @@ export function BomCompare() {
             Download revision B CSV ↓
           </a>
         </div>
-        <h3>Check a revision before replacing parts</h3>
+        <h3>How to compare two BOM CSV files by part number</h3>
         <p>
           Export each BOM as CSV UTF-8 from your spreadsheet or CAD/PDM system.
           Map the part number and quantity columns, then compare. Description
@@ -469,6 +469,9 @@ export function BomCompare() {
           thousands separators; this tool does not convert units or reconcile
           assembly hierarchies.
         </p>
+        <a href="/tools/handbook/#revisions">
+          Follow the BOM revision comparison exercise →
+        </a>
         <a href="/tools/drawing-to-bom/">
           BOM still in a drawing? Extract the table first →
         </a>
