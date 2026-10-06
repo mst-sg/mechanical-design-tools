@@ -60,7 +60,7 @@ export function App({ path }: { path: string }) {
             <a className="breadcrumb" href="/tools/">
               FREE TOOLS
             </a>
-            <h1>{active?.name || "Small tools. Useful engineering work."}</h1>
+            <h1>{active?.heading || active?.name || "Small tools. Useful engineering work."}</h1>
             <p>
               {active?.subtitle ||
                 "Check P&ID tags. Compare BOM revisions. Review drawing data."}

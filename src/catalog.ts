@@ -32,10 +32,12 @@ export const tools = [
   {
     slug: "bom-compare",
     name: "BOM Compare",
+    heading: "Compare Two BOM CSV Files",
+    searchTitle: "Compare Two BOM CSV Files by Part Number | MST",
     eyebrow: "REVISION A → REVISION B",
     description:
-      "Compare two CSVs by part number. Find added and removed parts, quantity changes and material updates.",
-    subtitle: "See what changed between two bills of materials.",
+      "Compare two BOM CSV files by part number. Find added or removed parts and quantity, description or material changes. Free, no file upload.",
+    subtitle: "Match part numbers and review quantity, description and material changes between two flat BOMs.",
   },
   {
     slug: "bom-model-check",
@@ -57,11 +59,13 @@ export const tools = [
   {
     slug: "bom-check",
     name: "BOM Check",
+    heading: "BOM CSV Checker",
+    searchTitle: "BOM CSV Checker: Duplicate Parts and Missing Quantities | MST",
     eyebrow: "EXPORTED DATA → REVIEWED BOM",
     description:
-      "Check missing values, repeated parts and conflicting fields. Keep every column as you edit and export.",
+      "Check a BOM CSV for duplicate part numbers, missing quantities and conflicting fields. Review and export every column locally. Free, no sign-in.",
     subtitle:
-      "Find missing values, repeated parts and conflicting data before reusing a BOM.",
+      "Find duplicate part numbers, missing quantities and conflicting fields in a flat BOM CSV.",
   },
   {
     slug: "title-block-reader",

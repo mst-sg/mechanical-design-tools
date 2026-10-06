@@ -546,23 +546,31 @@ export function BomCheckTool() {
         </>
       )}
       <section className="guide">
-        <h2>A review step between extraction and revision comparison</h2>
+        <h2>Check duplicate part numbers and missing quantities</h2>
         <ol>
           <li>
-            <strong>Load and map.</strong> Use your exported CSV and confirm
-            which columns to check.
+            <strong>Load and map.</strong> Open your BOM CSV and choose its
+            part-number and quantity columns. Map other fields you want to review.
           </li>
           <li>
-            <strong>Review the findings.</strong> Correct missing values,
-            inspect conflicts, and choose whether repeated rows should stay
-            separate.
+            <strong>Review the findings.</strong> Check duplicate part numbers,
+            missing quantities and conflicting attributes against the source BOM.
           </li>
           <li>
             <strong>Keep the result.</strong> Export every original column, or
             download the check report for follow-up.
           </li>
         </ol>
+        <p>
+          A repeated part number is a review item, not proof of an error.
+          Combine only separate occurrences that should be totalled; remove an
+          accidental copied row instead. Conflicting attributes or units must
+          be resolved before combining.
+        </p>
         <div className="related-links">
+          <a href="/tools/handbook/#duplicates">
+            Duplicate rows: keep, correct or combine? →
+          </a>
           <a href="/tools/samples/bom-check.csv" download>
             Download example CSV ↓
           </a>

@@ -16,7 +16,7 @@ const pages = [
   ],
   ...tools.map((tool) => [
     tool.slug,
-    `${tool.name} — Free Online Engineering Tool | MST`,
+    tool.searchTitle || `${tool.name} — Free Online Engineering Tool | MST`,
     tool.description,
   ]),
 ];
