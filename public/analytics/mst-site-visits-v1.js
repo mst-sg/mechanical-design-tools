@@ -39,17 +39,18 @@
     if (/^(google|google\.com)$/.test(campaign)) return 'google';
     if (/^(github|github\.com)$/.test(campaign)) return 'github';
     if (/^(email|newsletter)$/.test(campaign)) return 'email';
+    if (/^(chatgpt\.com|chat\.openai\.com|perplexity\.ai|claude\.ai|copilot\.microsoft\.com|gemini\.google\.com)$/.test(campaign)) return 'ai';
     if (campaign) return 'campaign';
     var ref;
     try { ref = new URL(referrer).hostname.toLowerCase(); } catch (_) { return 'direct'; }
     if (ref.replace(/^www\./, '') === host.replace(/^www\./, '')) return 'internal';
+    if (/(^|\.)(chatgpt\.com|chat\.openai\.com|perplexity\.ai|claude\.ai|copilot\.microsoft\.com|gemini\.google\.com)$/.test(ref)) return 'ai';
     if (/(^|\.)bing\.(com|cn)$/.test(ref)) return 'bing';
     if (/(^|\.)google\.(com|co\.uk|com\.sg|com\.au|co\.jp|de|fr|ca|co\.in|es|it|nl|com\.hk|com\.tw)$/.test(ref)) return 'google';
     if (/(^|\.)github\.com$/.test(ref)) return 'github';
     if (/(^|\.)baidu\.com$/.test(ref)) return 'baidu';
     if (/(^|\.)duckduckgo\.com$/.test(ref)) return 'duckduckgo';
     if (/(^|\.)yahoo\.(com|co\.jp)$/.test(ref)) return 'yahoo';
-    if (/(^|\.)(chatgpt\.com|perplexity\.ai|claude\.ai|copilot\.microsoft\.com|gemini\.google\.com)$/.test(ref)) return 'ai';
     if (/(^|\.)(linkedin\.com|facebook\.com|x\.com|t\.co|reddit\.com)$/.test(ref)) return 'social';
     return 'referral';
   }
