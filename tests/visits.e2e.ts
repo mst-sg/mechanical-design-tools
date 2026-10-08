@@ -1,7 +1,12 @@
 import { test, expect } from '@playwright/test';
 import { isVisitRequest } from './visit-request';
 
-test('hosted tools send only one bounded first-party PV, independently of GA choice', async ({ page }) => {
+for (const scenario of [
+  { name: 'Bing', query: '', referer: 'https://cn.bing.com/search?q=PRIVATE-DRAWING', source: 'bing' },
+  { name: 'ChatGPT UTM', query: '?utm_source=chatgpt.com&private=DO-NOT-COLLECT', referer: '', source: 'ai' },
+  { name: 'Gemini referrer', query: '', referer: 'https://gemini.google.com/app/PRIVATE-DRAWING', source: 'ai' },
+  { name: 'AI lookalike', query: '?utm_source=chatgpt.com.evil.example', referer: '', source: 'campaign' },
+]) test(`hosted tools send one bounded ${scenario.name} PV independently of GA choice`, async ({ page }) => {
   const endpoint = '/wp-json/mst-visits/v1/page-view';
   const writes: unknown[] = [], unexpected: string[] = [];
   const external = process.env.MST_TOOLS_BASE_URL;
@@ -23,9 +28,9 @@ test('hosted tools send only one bounded first-party PV, independently of GA cho
     if (/googletagmanager|google-analytics/.test(request.url())) unexpected.push('Unexpected Google request');
   });
   page.on('pageerror', error => unexpected.push(error.message));
-  await page.goto((external || origin) + '/tools/bom-compare/', { referer: 'https://cn.bing.com/search?q=PRIVATE-DRAWING' });
+  await page.goto((external || origin) + '/tools/bom-compare/' + scenario.query, { referer: scenario.referer });
   await expect.poll(() => writes.length).toBe(1);
-  expect(writes[0]).toMatchObject({v:1,path:'/tools/bom-compare/',source:'bing',traffic:'test'});
+  expect(writes[0]).toMatchObject({v:1,path:'/tools/bom-compare/',source:scenario.source,traffic:'test'});
   await page.getByRole('button',{name:'Try sample revisions'}).click();
   await expect(page.getByRole('button',{name:'Compare BOMs'})).toBeEnabled();
   expect(writes).toHaveLength(1);
