@@ -440,7 +440,10 @@ test("bad private metadata and low disk space refuse admission without creating 
 });
 
 test("private metadata initialization failure releases pending capacity", async (t) => {
-  const f = await fixture(t, { perAddressPending: 1 });
+  const f = await fixture(t, {
+    perAddressPending: 1,
+    maxStoredBytes: tiny.length,
+  });
   const original = f.app.store.context;
   f.app.store.context = () => {
     throw new Error("injected database write failure");
@@ -448,6 +451,7 @@ test("private metadata initialization failure releases pending capacity", async 
   const a = f.access();
   assert.equal((await f.req(a, "POST", "", tiny)).status, 422);
   assert.equal(f.app.store.get(a.id)?.state, "failed");
+  assert.equal(f.app.store.get(a.id)?.bytes, 0);
   assert.equal(existsSync(f.app.store.dir(a.id)), false);
   f.app.store.context = original;
   assert.equal((await f.req(f.access(), "POST", "", tiny)).status, 202);

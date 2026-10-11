@@ -132,6 +132,9 @@ export class JobStore {
       .prepare("UPDATE upload_context SET sha256=? WHERE job_id=?")
       .run(digest, id);
   }
+  releaseReservation(id: string) {
+    this.db.prepare("UPDATE jobs SET bytes=0 WHERE id=?").run(id);
+  }
   recognized(id: string, engine: unknown, rows: number) {
     this.db
       .prepare(

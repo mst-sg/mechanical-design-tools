@@ -22,7 +22,7 @@ A release separately requires real Paddle GPU recognition of owned PNG/PDF fixtu
 
 Publish exact passing main CI artifacts: `mechanical-gateway-<SHA>` on the trusted HTTPS gateway and `mechanical-jobs-<SHA>` on the GPU host. Verify all manifest hashes. The gateway build rewrites the static `/tools/` mount to `/engineering-tools/` and its API to `/engineering-tools-api/`; all processing code/assets and requests load from the trusted origin. Any former host may redirect visitors only; it must not serve the new upload page or receive service credentials.
 
-Run immutable code and dependencies in bounded unprivileged containers. Pin a private Node 24 runtime and an isolated Paddle GPU environment; do not change neighboring model runtimes. The Paddle container has one GPU, preloaded local weights, no public port and no external network. The job container shares its private internal network and also joins a dedicated ingress bridge, publishing its API only on the private host address. Its entrypoint sets rules in its own network namespace: only the trusted gateway may connect, and only the private Paddle endpoint is allowed for new outbound connections. Initial NET_ADMIN/SETUID/SETGID/SETPCAP capabilities are dropped completely before the Node process starts. No host firewall rules are changed. Read-only code/root filesystems, dropped capabilities, private data mounts and memory/CPU/PID limits are required. The Paddle process exits on a 75-second inference watchdog and restarts under the container supervisor; Node's worker deadline is 90 seconds.
+Run immutable code and dependencies in bounded unprivileged containers. Pin a private Node 24 runtime and an isolated Paddle GPU environment; do not change neighboring model runtimes. The Paddle container has one GPU, preloaded local weights, no public port and no external network. The job container shares its private internal network and also joins a dedicated ingress bridge, publishing its API only on the private host address. Its entrypoint sets rules in its own network namespace: only the verified local port-proxy peer may connect, and only the private Paddle endpoint is allowed for new outbound connections. Initial NET_ADMIN/SETUID/SETGID/SETPCAP capabilities are dropped completely before the Node process starts. No host firewall rules are changed. Read-only code/root filesystems, dropped capabilities, private data mounts and memory/CPU/PID limits are required. The Paddle process exits on a 75-second inference watchdog and restarts under the container supervisor; Node's worker deadline is 90 seconds.
 
 Required job configuration (secret values are supplied outside the repository):
 
@@ -35,7 +35,7 @@ MST_JOBS_BIND=0.0.0.0
 MST_JOBS_PORT=4174
 MST_JOBS_RETENTION_DAYS=0
 MST_JOBS_TRUST_PROXY=1
-MST_JOBS_GATEWAY_ADDRESS=<trusted-gateway-private-address>
+MST_JOBS_GATEWAY_ADDRESS=<verified-socket-peer>
 MST_JOBS_GATEWAY_TOKEN=<private-random-secret>
 MST_JOBS_PADDLE_URL=http://<private-paddle-container-address>:7018
 MST_JOBS_PADDLE_IP=<private-paddle-container-address>
@@ -44,7 +44,7 @@ MST_JOBS_PADDLE_TOKEN=<different-private-random-secret>
 
 Paddle requires `MST_PADDLE_TOKEN`, `MST_PADDLE_BIND=0.0.0.0` and project-local model-cache paths. GPU capability and the selected GPU device are checked; CPU fallback is refused. The runtime image template installs only system libraries. Install pinned Paddle packages in an isolated Python 3.12 environment and record the complete resolved dependency list, image digest and model checksums in the private release receipt.
 
-The Node API verifies both the gateway's socket peer and a separate gateway credential before trusting `X-Real-IP`. The gateway overwrites incoming gateway/IP headers and preserves the independent job `Authorization` header. Trust CDN IP headers only from verified proxy ranges. Same-origin mutation checks remain enabled; no cross-origin access, public listing or original-file URL is provided.
+The Node API verifies the actual socket peer and a separate gateway credential before trusting `X-Real-IP`. A Docker userland port proxy can replace the original gateway source IP with its dedicated bridge address. In that deployment, pin the verified local proxy address: it proves the local proxy path, while the dedicated 256-bit credential authenticates the HTTPS gateway. Do not claim the container also enforces the original SG source IP. The gateway overwrites incoming gateway/IP headers and preserves the independent job `Authorization` header. Trust CDN IP headers only from verified proxy ranges. Same-origin mutation checks remain enabled; no cross-origin access, public listing or original-file URL is provided.
 
 Disable Nginx request and response buffering and caching. Put fallback request-body temporary files on a bounded RAM-backed `/run` directory; verify that large streaming uploads do not spill onto persistent gateway storage. Use the scoped Nginx template and preserve unrelated routes. Legacy systemd templates are alternatives for a suitably isolated single host, not the two-host deployment recipe.
 

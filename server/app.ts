@@ -69,6 +69,11 @@ export function createJobService(config: Config) {
       code,
     );
   }
+  function discardPartialUpload(id: string) {
+    rmSync(join(store.dir(id), "upload.part"), { force: true });
+    if (!existsSync(join(store.dir(id), "source")))
+      store.releaseReservation(id);
+  }
   function sweep(now = Date.now()) {
     for (const job of store.all()) {
       if (job.expires > 0 && job.expires <= now) erase(job.id);
@@ -83,7 +88,10 @@ export function createJobService(config: Config) {
   // Never silently replay a job whose process disappeared. The original and
   // failure remain available until expiry, so the visitor gets a real outcome.
   for (const job of store.all())
-    if (!terminal(job.state)) fail(job.id, "interrupted");
+    if (!terminal(job.state)) {
+      fail(job.id, "interrupted");
+      discardPartialUpload(job.id);
+    }
   sweep();
   function pump() {
     if (closing) return;
@@ -373,6 +381,7 @@ export function createJobService(config: Config) {
         } finally {
           clearTimeout(timer);
           uploads.delete(id);
+          discardPartialUpload(id);
         }
         return;
       }
