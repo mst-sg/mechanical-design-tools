@@ -34,7 +34,12 @@ async function observe(page: Page) {
       const body =
         request.method() === "GET"
           ? undefined
-          : request.postDataBuffer() || undefined;
+          : request.method() === "POST" &&
+              /\/jobs\/[a-f0-9-]+$/.test(url.pathname)
+            ? // WebKit's intercepted binary postData is not byte preserving.
+              // Forward the exact synthetic file selected by noLabels below.
+              drawing
+            : request.postDataBuffer() || undefined;
       const response = await fetch("http://127.0.0.1:4174" + url.pathname, {
         method: request.method(),
         headers,

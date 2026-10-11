@@ -32,5 +32,6 @@ public/labs/delivery-package/*
 !public/labs/delivery-package/review-*.png
 
 server-dist/
+server-assets/
 .private-jobs/
 server-release.json

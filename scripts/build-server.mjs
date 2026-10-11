@@ -15,7 +15,7 @@ await build({
   packages: "external",
 });
 
-import { readFile, writeFile } from "node:fs/promises";
+import { cp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 const paths = [
@@ -30,6 +30,21 @@ const paths = [
   "deploy/mst-tools-jobs-cleanup.timer",
   "deploy/nginx-tools-api.conf",
 ];
+await rm("server-assets", { recursive: true, force: true });
+for (const directory of ["lang", "standard_fonts", "cmaps", "pdf-wasm"])
+  await cp(`public/vendor/${directory}`, `server-assets/${directory}`, {
+    recursive: true,
+  });
+async function collect(directory) {
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    const path = `${directory}/${entry.name}`;
+    if (entry.isDirectory()) await collect(path);
+    else if (entry.isFile()) paths.push(path);
+    else throw new Error(`Unexpected server asset: ${path}`);
+  }
+}
+await collect("server-assets");
+paths.sort();
 const files = await Promise.all(
   paths.map(async (path) => ({
     path,

@@ -43,6 +43,7 @@ export function DrawingToBom() {
   const originalFile = useRef<File | null>(null);
   const inputMode = useRef<UsageMode>("provided");
   const currentUsage = useRef<UsageRun | null>(null);
+  const restoredResult = useRef(false);
   const pdf = useRef<PDFDocumentProxy | null>(null),
     controller = useRef<AbortController | null>(null),
     generation = useRef(0),
@@ -77,6 +78,7 @@ export function DrawingToBom() {
   const unavailable = busy || loading || managingJob;
   function resetResults() {
     currentUsage.current = null;
+    restoredResult.current = false;
     setRows([]);
     setText("");
     setNote("");
@@ -155,6 +157,9 @@ export function DrawingToBom() {
     const id = ++generation.current;
     setLoading(true);
     resetResults();
+    setAccess(null);
+    setJob(null);
+    rememberJob(null);
     try {
       const next = await pdfPage(pdf.current, n, drawing.name);
       if (id === generation.current) {
@@ -203,6 +208,7 @@ export function DrawingToBom() {
   }
   async function resume(saved = access) {
     if (!saved) return;
+    if (!currentUsage.current) restoredResult.current = true;
     const id = ++generation.current,
       control = new AbortController();
     controller.current = control;
@@ -367,6 +373,10 @@ export function DrawingToBom() {
         currentUsage.current?.export();
         return;
       }
+      if (restoredResult.current && !currentUsage.current) {
+        if (access) void jobEvent(access, "exported");
+        return;
+      }
       const usage = currentUsage.current ?? startUsage(inputMode.current);
       currentUsage.current = usage;
       usage.complete();
@@ -408,8 +418,9 @@ export function DrawingToBom() {
           </label>
           <p className="upload-note" id="drawing-file-policy">
             MST processes the original file on its server. The file and result
-            are deleted within {retentionHours} hours. You can delete them
-            sooner below. Files are not used for model training.
+            expire after {retentionHours} hours and are automatically deleted.
+            You can delete them sooner below. Files are not used for model
+            training.
           </p>
           {loading && (
             <div className="loading" role="status">

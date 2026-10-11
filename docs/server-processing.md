@@ -29,7 +29,7 @@ Required environment file:
 ```text
 MST_JOBS_ORIGIN=https://your-canonical-domain
 MST_JOBS_DATA=/var/lib/mst-tools-jobs
-MST_JOBS_ASSETS=/absolute/exact-static-release/vendor
+MST_JOBS_ASSETS=/opt/mst-tools-jobs/current/server-assets
 MST_JOBS_PORT=4174
 MST_JOBS_TRUST_PROXY=1
 ```

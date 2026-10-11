@@ -36,6 +36,7 @@ jobs:
           name: mechanical-jobs-${{ github.sha }}
           path: |
             server-dist/
+            server-assets/
             package.json
             package-lock.json
             server-release.json
