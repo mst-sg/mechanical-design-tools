@@ -10,7 +10,7 @@ Deletion removes the original, result, access record and associated private uplo
 
 SQLite joins each job with its original filename, SHA-256, anonymous browser visitor ID, keyed network identifier, optional self-reported email, referrer hostname, bounded user agent, selected page/crop, processing states, engine version/device, row count and retrieval/display/export events. Filename is display metadata, never a storage path. These records are private and only readable through authorized server access. Anonymous IDs and unverified email do not establish a person's real identity and never grant access to files.
 
-Run `MST_JOBS_DATA=/private/data node server-dist/report.mjs YYYY-MM-DD` for UTC+8 daily counts; add `--jobs` for private upload details. Never publish that output. Use `traffic:test` for synthetic QA; it is reported separately and does not bypass limits. Optional page analytics and its GPC/DNT choices remain separate from records needed to deliver the requested upload service.
+Run `MST_JOBS_DATA=/private/data node server-dist/report.mjs YYYY-MM-DD` for UTC+8 daily counts; add `--jobs` for private upload details. Never publish that output. Use `traffic:test` for synthetic QA; it is reported separately and does not bypass limits. The trusted gateway records upload/result/export outcomes in this job service. Its page requests remain visible in gateway access logs. The legacy optional WordPress tracker is omitted there because that collector only accepts its existing /tools/ routes; do not claim these new pages appear in the legacy JavaScript funnel. Other deployments retain their separate optional tracker and GPC/DNT choices.
 
 ## Verification
 

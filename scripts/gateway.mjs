@@ -22,8 +22,15 @@ async function visit(directory = "gateway-dist") {
           "https://mst-sg.com/engineering-tools",
         )
         .replaceAll("/tools-api/", "/engineering-tools-api/")
+        .replaceAll("tools\\/", "engineering-tools\\/")
         .replaceAll("/tools/", "/engineering-tools/")
-        .replaceAll('"/tools"', '"/engineering-tools"');
+        .replaceAll('"/tools"', '"/engineering-tools"')
+        // The WordPress collector only accepts its legacy /tools/ routes.
+        // Upload/retrieval/export events are recorded by the private job API.
+        .replace(
+          /<script\b[^>]*src="\/engineering-tools\/analytics\/mst-site-visits-v1\.js[^"]*"[^>]*><\/script>/g,
+          "",
+        );
       await writeFile(path, after);
     }
     files.push({
