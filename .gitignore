@@ -37,3 +37,5 @@ server-assets/
 server-release.json
 
 gateway-dist/
+us-gateway-dist/
+deploy/us-entry/.wrangler/

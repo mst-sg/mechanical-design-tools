@@ -53,7 +53,7 @@ export const tools = [
     name: "Drawing to BOM",
     eyebrow: "DRAWING → SPREADSHEET",
     description:
-      "Read an existing parts table from a PNG, JPEG or PDF. Review the rows and export CSV.",
+      "Read an existing parts table from a PNG, JPEG or PDF. Review the rows and export Excel or CSV.",
     subtitle: "Turn a drawing’s parts table into an editable spreadsheet.",
   },
   {

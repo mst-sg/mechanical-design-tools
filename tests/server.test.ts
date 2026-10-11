@@ -81,9 +81,12 @@ async function fixture(
       },
       body: body as unknown as BodyInit,
     });
-  const done = async (a: ReturnType<typeof access>) => {
+  const done = async (
+    a: ReturnType<typeof access>,
+    headers: Record<string, string> = {},
+  ) => {
     for (let n = 0; n < 180; n++) {
-      const r = await req(a);
+      const r = await req(a, "GET", "", undefined, headers);
       assert.equal(r.status, 200);
       const j = (await r.json()) as JobSnapshot;
       if (
@@ -437,6 +440,40 @@ test("bad private metadata and low disk space refuse admission without creating 
   const g = await fixture(t, { minFreeBytes: Number.MAX_SAFE_INTEGER });
   assert.equal((await g.req(g.access(), "POST", "", tiny)).status, 503);
   assert.equal(g.app.store.all().length, 0);
+});
+
+test("isolated US child origin denies the same-site root and SG origin even with a valid capability", async (t) => {
+  const token = "us-private-gateway-".repeat(4);
+  const f = await fixture(t, {
+    origin: "https://tools.mst-us.ai",
+    trustProxy: true,
+    gatewayToken: token,
+    gatewayAddress: "127.0.0.1",
+  });
+  const a = f.access();
+  const headers = { "X-MST-Gateway-Token": token, "X-Real-IP": "203.0.113.7" };
+  assert.equal((await f.req(a, "POST", "", tiny, headers)).status, 202);
+  await f.done(a, headers);
+  for (const origin of ["https://mst-us.ai", "https://mst-sg.com", "null"]) {
+    for (const [method, suffix] of [
+      ["GET", "/result"],
+      ["GET", "/original"],
+      ["POST", "/exported"],
+      ["DELETE", ""],
+    ]) {
+      const result = await f.req(a, method, suffix, undefined, {
+        ...headers,
+        Origin: origin,
+        "Sec-Fetch-Site": "same-site",
+      });
+      assert.equal(result.status, 403);
+      assert.equal(result.headers.get("access-control-allow-origin"), null);
+    }
+  }
+  assert.equal(
+    (await f.req(a, "GET", "/result", undefined, headers)).status,
+    200,
+  );
 });
 
 test("private metadata initialization failure releases pending capacity", async (t) => {
