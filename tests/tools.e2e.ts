@@ -142,7 +142,7 @@ test("on-site directory, dropdown, mapping, comparison, download and invalid inp
   await expect(page.getByRole("alert")).toContainText("unclosed");
   expect(errors).toEqual([]);
 });
-test("real server PNG recognition, row correction and CSV export", async ({
+test("server PNG workflow, row correction and CSV export", async ({
   page,
 }, info) => {
   const errors = watch(page);
@@ -186,7 +186,7 @@ test("user image/PDF paths and unsupported file recovery", async ({
   );
   const errors = watch(page);
   await page.goto("/tools/drawing-to-bom/");
-  const input = page.locator("input[type=file]");
+  const input = page.getByLabel("Choose a PNG, JPEG or PDF drawing");
   await expect(input).toBeEnabled();
   await input.setInputFiles({
     name: "wrong.txt",

@@ -29,7 +29,13 @@ const paths = [
   "deploy/mst-tools-jobs-cleanup.service",
   "deploy/mst-tools-jobs-cleanup.timer",
   "deploy/nginx-tools-api.conf",
+  "server-dist/paddle-service.py",
+  "server-dist/paddle-supervisor.py",
+  "deploy/Dockerfile.gpu-runtime",
+  "deploy/start-isolated-jobs.sh",
 ];
+await cp("server/paddle-service.py", "server-dist/paddle-service.py");
+await cp("server/paddle-supervisor.py", "server-dist/paddle-supervisor.py");
 await rm("server-assets", { recursive: true, force: true });
 for (const directory of ["lang", "standard_fonts", "cmaps", "pdf-wasm"])
   await cp(`public/vendor/${directory}`, `server-assets/${directory}`, {

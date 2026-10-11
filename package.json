@@ -1,6 +1,6 @@
 {
   "name": "mst-mechanical-design-tools",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -16,7 +16,8 @@
     "test:e2e": "playwright test",
     "build:server": "node scripts/build-server.mjs",
     "start:jobs": "node server-dist/main.mjs",
-    "test:server": "tsx --test tests/server.test.ts"
+    "test:server": "tsx --test tests/server.test.ts",
+    "build:gateway": "node scripts/gateway.mjs"
   },
   "dependencies": {
     "pdfjs-dist": "6.3.289",

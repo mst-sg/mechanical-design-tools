@@ -21,6 +21,9 @@ import { errors, type Config } from "./config";
 import { parseOptions, validMagic, UUID, TOKEN } from "./input";
 import { terminal, type JobResult } from "../src/job-types";
 import { exportBom } from "../src/csv";
+import { createHash, timingSafeEqual } from "node:crypto";
+import { isIP } from "node:net";
+import { parseContext } from "./input";
 
 class HttpError extends Error {
   constructor(
@@ -56,6 +59,7 @@ export function createJobService(config: Config) {
     stop(id);
     const job = store.get(id);
     if (job && !terminal(job.state)) store.finish(id, "cancelled", "cancelled");
+    if (job) store.event(id, "deleted");
     store.purge(id);
   }
   function fail(id: string, code: string) {
@@ -67,7 +71,7 @@ export function createJobService(config: Config) {
   }
   function sweep(now = Date.now()) {
     for (const job of store.all()) {
-      if (job.expires <= now) erase(job.id);
+      if (job.expires > 0 && job.expires <= now) erase(job.id);
       else if (
         job.state === "queued" &&
         now - job.updated > config.queueTimeoutMs
@@ -170,6 +174,7 @@ export function createJobService(config: Config) {
               mode: 0o600,
               flag: "wx",
             });
+            store.recognized(job.id, result.engine, result.rows.length);
             store.finish(job.id, result.rows.length ? "succeeded" : "empty");
             finished = true;
           } catch {
@@ -195,6 +200,8 @@ export function createJobService(config: Config) {
           mime: job.mime,
           options: JSON.parse(job.options),
           assets: config.assetsDir,
+          paddleUrl: config.paddleUrl,
+          paddleToken: config.paddleToken,
         },
         (error) => {
           if (error) {
@@ -214,12 +221,27 @@ export function createJobService(config: Config) {
       "default-src 'none'; frame-ancestors 'none'",
     );
     try {
+      // Authenticate the hop before trusting forwarded addresses or any job data.
+      // Origin and the visitor's job capability are separate boundaries.
+      if (config.gatewayToken) {
+        const peer = (req.socket.remoteAddress || "").replace(/^::ffff:/, "");
+        const supplied = String(req.headers["x-mst-gateway-token"] || "");
+        if (
+          peer !== config.gatewayAddress ||
+          !timingSafeEqual(
+            createHash("sha256").update(supplied).digest(),
+            createHash("sha256").update(config.gatewayToken).digest(),
+          )
+        )
+          throw new HttpError(403, "forbidden");
+      } else if (config.trustProxy) throw new HttpError(503, "unavailable");
       const path = new URL(req.url || "/", "http://local").pathname;
       if (req.method === "GET" && path === "/tools-api/health") {
         return json(res, 200, {
           status: "ok",
           retentionHours: config.retentionMs / 3600_000,
           maxFileBytes: config.maxBytes,
+          engine: "PaddleOCR",
         });
       }
       if (!["GET", "POST", "DELETE"].includes(req.method || ""))
@@ -246,7 +268,7 @@ export function createJobService(config: Config) {
         if (existing) {
           if (!store.authorized(existing, token))
             throw new HttpError(404, "not_found");
-          if (existing.expires <= Date.now()) {
+          if (existing.expires > 0 && existing.expires <= Date.now()) {
             erase(id);
             throw new HttpError(410, "not_found");
           }
@@ -261,10 +283,13 @@ export function createJobService(config: Config) {
         const mime = req.headers["content-type"] || "";
         if (!["image/png", "image/jpeg", "application/pdf"].includes(mime))
           throw new HttpError(415, "invalid_file");
-        let options;
+        let options, context;
         try {
           options = parseOptions(
             String(req.headers["x-mst-job-options"] || ""),
+          );
+          context = parseContext(
+            String(req.headers["x-mst-upload-context"] || ""),
           );
         } catch {
           throw new HttpError(400, "invalid_options");
@@ -273,17 +298,19 @@ export function createJobService(config: Config) {
         const ip = config.trustProxy
           ? String(req.headers["x-real-ip"] || req.socket.remoteAddress)
           : String(req.socket.remoteAddress);
+        if (!isIP(ip)) throw new HttpError(400, "invalid_options");
         const rejected = store.create(id, token, ip, size, mime, options);
         if (rejected) {
           res.setHeader("Retry-After", "60");
           throw new HttpError(rejected === "rate_limit" ? 429 : 503, rejected);
         }
-        mkdirSync(store.dir(id), { mode: 0o700 });
         uploads.set(id, req);
         let received = 0;
+        const sourceHash = createHash("sha256");
         const limiter = new Transform({
           transform(chunk: Buffer, _encoding, callback) {
             received += chunk.length;
+            sourceHash.update(chunk);
             callback(
               received > config.maxBytes || received > size
                 ? new Error("too_large")
@@ -297,6 +324,13 @@ export function createJobService(config: Config) {
           config.uploadTimeoutMs,
         );
         try {
+          mkdirSync(store.dir(id), { mode: 0o700 });
+          store.context(
+            id,
+            ip,
+            context,
+            String(req.headers["user-agent"] || ""),
+          );
           await pipeline(
             req,
             limiter,
@@ -319,6 +353,7 @@ export function createJobService(config: Config) {
             join(store.dir(id), "upload.part"),
             join(store.dir(id), "source"),
           );
+          store.sourceDigest(id, sourceHash.digest("hex"));
           store.event(id, "upload_received", "", Date.now(), () =>
             store.update(id, "queued", "queued"),
           );
@@ -343,7 +378,7 @@ export function createJobService(config: Config) {
       }
       const job = store.get(id);
       if (!store.authorized(job, token)) throw new HttpError(404, "not_found");
-      if (job!.expires <= Date.now()) {
+      if (job!.expires > 0 && job!.expires <= Date.now()) {
         erase(id);
         throw new HttpError(410, "not_found");
       }

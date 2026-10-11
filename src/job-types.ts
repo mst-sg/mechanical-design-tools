@@ -33,6 +33,23 @@ export type JobSnapshot = {
   errorCode: string | null;
   message: string;
 };
-export type JobResult = { rows: BomRow[]; text: string; message: string };
+export type RecognitionEngine = {
+  name: string;
+  version: string;
+  model: string;
+  device: string;
+};
+export type UploadContext = {
+  visitorId: string;
+  filename: string;
+  contactEmail: string;
+  referrerHost: string;
+};
+export type JobResult = {
+  rows: BomRow[];
+  text: string;
+  message: string;
+  engine?: RecognitionEngine;
+};
 export const terminal = (state: JobState) =>
   ["succeeded", "empty", "failed", "timed_out", "cancelled"].includes(state);

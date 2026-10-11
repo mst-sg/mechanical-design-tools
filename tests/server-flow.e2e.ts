@@ -93,13 +93,11 @@ test("changing PDF page detaches the old result and submits the newly selected p
       });
   });
   await page.goto("/tools/drawing-to-bom/?mst_analytics_test=1");
-  await page
-    .getByLabel("Choose a PNG, JPEG or PDF drawing")
-    .setInputFiles({
-      name: "two-page-test.pdf",
-      mimeType: "application/pdf",
-      buffer: Buffer.from(await document.save()),
-    });
+  await page.getByLabel("Choose a PNG, JPEG or PDF drawing").setInputFiles({
+    name: "two-page-test.pdf",
+    mimeType: "application/pdf",
+    buffer: Buffer.from(await document.save()),
+  });
   await page.getByRole("button", { name: "Extract BOM", exact: true }).click();
   await expect(
     page.getByLabel("Row 1 Part number", { exact: true }),
@@ -172,4 +170,73 @@ test("unavailable upload gives a useful error promptly and a new attempt succeed
     page.getByLabel("Row 1 Part number", { exact: true }),
   ).toHaveValue("BRK-100", { timeout: 60000 });
   await page.getByRole("button", { name: "Delete server files" }).click();
+});
+
+test("previous uploads and private receipts restore the right job after closing its tab", async ({
+  page,
+}, info) => {
+  test.skip(
+    info.project.name !== "desktop-chromium",
+    "Private recovery contract; normal restoration also runs on mobile.",
+  );
+  await page.goto("/tools/drawing-to-bom/?mst_analytics_test=1");
+  await page.getByLabel("Contact email (optional)").fill("qa@example.invalid");
+  await page.getByRole("button", { name: "Try a sample", exact: true }).click();
+  await page.getByRole("button", { name: "Extract BOM", exact: true }).click();
+  await expect(
+    page.getByLabel("Row 1 Part number", { exact: true }),
+  ).toHaveValue("BRK-100");
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Save private job receipt" }).click();
+  const receipt = (await (await download).path())!;
+  const context = page.context();
+  await page.close();
+  const restored = await context.newPage();
+  await restored.goto("/tools/drawing-to-bom/?mst_analytics_test=1");
+  await expect(
+    restored.getByLabel("Row 1 Part number", { exact: true }),
+  ).toHaveValue("BRK-100");
+  await restored
+    .getByLabel("Choose a PNG, JPEG or PDF drawing")
+    .setInputFiles({
+      name: "different-B.png",
+      mimeType: "image/png",
+      buffer: await readFile("public/samples/bracket-bom.png"),
+    });
+  await expect(restored.locator(".drawing-preview img")).toBeVisible();
+  await restored
+    .getByText("Previous uploads and private receipts", { exact: true })
+    .click();
+  await restored
+    .getByLabel("Saved upload in this browser")
+    .selectOption({ index: 1 });
+  await expect(
+    restored.getByLabel("Row 1 Part number", { exact: true }),
+  ).toHaveValue("BRK-100");
+  await expect(restored.locator(".drawing-preview img")).toHaveCount(0);
+  await restored.evaluate(() => localStorage.clear());
+  await restored.reload();
+  await expect(
+    restored.getByLabel("Row 1 Part number", { exact: true }),
+  ).toHaveCount(0);
+  await restored
+    .getByText("Previous uploads and private receipts", { exact: true })
+    .click();
+  await restored
+    .getByLabel("Restore a private job receipt")
+    .setInputFiles(receipt);
+  await expect(
+    restored.getByLabel("Row 1 Part number", { exact: true }),
+  ).toHaveValue("BRK-100");
+  await restored.getByRole("button", { name: "Delete server files" }).click();
+  await expect(
+    restored.getByRole("button", { name: "Delete server files" }),
+  ).toHaveCount(0);
+  await restored
+    .getByLabel("Restore a private job receipt")
+    .setInputFiles(receipt);
+  await expect(restored.getByRole("alert")).toContainText("unavailable");
+  await expect(
+    restored.getByLabel("Row 1 Part number", { exact: true }),
+  ).toHaveCount(0);
 });

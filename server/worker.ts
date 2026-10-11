@@ -7,9 +7,9 @@ import {
   ImageData,
   Path2D,
 } from "@napi-rs/canvas";
-import { createWorker, PSM } from "tesseract.js";
+import { recognizePaddle } from "./paddle";
 import { removeTableRules } from "../src/preprocess";
-import { extractTable, wordsFromTsv } from "../src/ocr-table";
+import { extractTable } from "../src/ocr-table";
 import type { JobOptions, JobResult } from "../src/job-types";
 let phase = "rendering",
   sent = false;
@@ -86,6 +86,8 @@ process.once(
     mime: string;
     options: JobOptions;
     assets: string;
+    paddleUrl: string;
+    paddleToken: string;
   }) => {
     try {
       const { source, mime, options, assets } = message;
@@ -168,47 +170,21 @@ process.once(
       canvas.width = 1;
       canvas.height = 1;
       progress("loading_model");
-      const worker = await createWorker(
-        options.language === "chi_sim" ? ["eng", "chi_sim"] : "eng",
-        1,
-        {
-          langPath: join(assets, "lang"),
-          cacheMethod: "none",
-          errorHandler: () =>
-            failure(
-              phase === "loading_model"
-                ? "model_unavailable"
-                : "recognition_failed",
-            ),
-          logger: (info) => {
-            if (info.status === "recognizing text")
-              progress("recognizing", info.progress);
-          },
-        },
+      const recognized = await recognizePaddle(
+        clipped.toBuffer("image/png"),
+        message.paddleUrl,
+        message.paddleToken,
       );
-      try {
-        await worker.setParameters({
-          tessedit_pageseg_mode: PSM.SINGLE_BLOCK,
-          preserve_interword_spaces: "1",
-          user_defined_dpi: "300",
-        });
-        progress("recognizing");
-        const { data } = await worker.recognize(
-          clipped.toBuffer("image/png"),
-          {},
-          { text: true, tsv: true },
-        );
-        const extracted = extractTable(wordsFromTsv(data.tsv || ""));
-        const result: JobResult = {
-          rows: extracted.rows,
-          text: data.text.slice(0, 500_000),
-          message: extracted.message,
-        };
-        sent = true;
-        send({ type: "result", result });
-      } finally {
-        await worker.terminate();
-      }
+      progress("recognizing", 1);
+      const extracted = extractTable(recognized.words);
+      const result: JobResult = {
+        rows: extracted.rows,
+        text: recognized.text,
+        message: extracted.message,
+        engine: recognized.engine,
+      };
+      sent = true;
+      send({ type: "result", result });
     } catch (error) {
       const code =
         error instanceof Error &&

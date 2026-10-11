@@ -15,6 +15,11 @@ export type Config = {
   hourlyLimit: number;
   perAddressPending: number;
   trustProxy: boolean;
+  gatewayToken: string;
+  gatewayAddress: string;
+  paddleUrl: string;
+  paddleToken: string;
+  minFreeBytes: number;
 };
 export function configuration(overrides: Partial<Config> = {}): Config {
   return {
@@ -22,17 +27,23 @@ export function configuration(overrides: Partial<Config> = {}): Config {
     assetsDir: resolve(process.env.MST_JOBS_ASSETS || "public/vendor"),
     workerPath: resolve("server-dist/worker.mjs"),
     origin: process.env.MST_JOBS_ORIGIN || "http://127.0.0.1:4173",
-    retentionMs: 24 * 3600_000,
+    // Zero means retained until the visitor or an administrator deletes it.
+    retentionMs: Number(process.env.MST_JOBS_RETENTION_DAYS || 0) * 86400_000,
     jobTimeoutMs: 90_000,
     uploadTimeoutMs: 45_000,
     queueTimeoutMs: 120_000,
     maxBytes: 25 * 1024 * 1024,
-    maxStoredBytes: 1024 * 1024 * 1024,
+    maxStoredBytes: 20 * 1024 * 1024 * 1024,
     concurrency: 1,
     maxPending: 12,
     hourlyLimit: 20,
     perAddressPending: 2,
     trustProxy: process.env.MST_JOBS_TRUST_PROXY === "1",
+    gatewayToken: process.env.MST_JOBS_GATEWAY_TOKEN || "",
+    gatewayAddress: process.env.MST_JOBS_GATEWAY_ADDRESS || "",
+    paddleUrl: process.env.MST_JOBS_PADDLE_URL || "http://127.0.0.1:7018",
+    paddleToken: process.env.MST_JOBS_PADDLE_TOKEN || "",
+    minFreeBytes: 2 * 1024 * 1024 * 1024,
     ...overrides,
   };
 }
