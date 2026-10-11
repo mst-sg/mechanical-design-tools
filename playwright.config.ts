@@ -34,10 +34,18 @@ export default defineConfig({
   ],
   webServer: external
     ? undefined
-    : {
-        command: "npm run preview",
-        url: "http://127.0.0.1:4173/tools/",
-        reuseExistingServer: !process.env.CI,
-        timeout: 30000,
-      },
+    : [
+        {
+          command: "npm run preview",
+          url: "http://127.0.0.1:4173/tools/",
+          reuseExistingServer: !process.env.CI,
+          timeout: 30000,
+        },
+        {
+          command: "node --import tsx server/test-host.ts",
+          url: "http://127.0.0.1:4174/tools-api/health",
+          reuseExistingServer: !process.env.CI,
+          timeout: 30000,
+        },
+      ],
 });

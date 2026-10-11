@@ -18,7 +18,12 @@ function watch(page: Page) {
       !r.url().startsWith("data:")
     )
       errors.push("Unexpected egress: " + r.url());
-    if (r.method() !== "GET" && !isVisitRequest(r)) errors.push("Unexpected write: " + r.method());
+    if (
+      r.method() !== "GET" &&
+      !isVisitRequest(r) &&
+      !new URL(r.url()).pathname.startsWith("/tools-api/")
+    )
+      errors.push("Unexpected write: " + r.method());
   });
   page.on("response", (r) => {
     if (r.status() >= 400) errors.push(r.status() + " " + r.url());
@@ -55,9 +60,16 @@ test("on-site directory, dropdown, mapping, comparison, download and invalid inp
     process.env.MST_TOOLS_BASE_URL ? 10000 : 5000,
   );
   await expect(page.locator(".tool-entry h2")).toHaveText([
-    "Line List Check ↗", "Delivery Package Check ↗", "Connection Table Check ↗",
-    "P&ID Tag Check ↗", "BOM Compare ↗", "BOM–Model Check ↗", "Drawing to BOM ↗",
-    "BOM Check ↗", "Title Block Reader ↗", "Drawing Register Compare ↗",
+    "Line List Check ↗",
+    "Delivery Package Check ↗",
+    "Connection Table Check ↗",
+    "P&ID Tag Check ↗",
+    "BOM Compare ↗",
+    "BOM–Model Check ↗",
+    "Drawing to BOM ↗",
+    "BOM Check ↗",
+    "Title Block Reader ↗",
+    "Drawing Register Compare ↗",
   ]);
   await page.locator("header summary").click();
   await page
@@ -130,7 +142,7 @@ test("on-site directory, dropdown, mapping, comparison, download and invalid inp
   await expect(page.getByRole("alert")).toContainText("unclosed");
   expect(errors).toEqual([]);
 });
-test("real PNG recognition, row correction and CSV export without upload", async ({
+test("real server PNG recognition, row correction and CSV export", async ({
   page,
 }, info) => {
   const errors = watch(page);
@@ -235,16 +247,25 @@ test("canonical HTML and useful tool content without JavaScript", async ({
   await context.close();
 });
 
-test("cancel model initialization and recover using the sample", async ({
+test("cancel server processing and recover using the sample", async ({
   page,
 }, info) => {
   test.skip(info.project.name !== "desktop-chromium");
   await page.goto("/tools/drawing-to-bom/");
   await page.getByRole("button", { name: "Try a sample", exact: true }).click();
+  const uploaded = page.waitForResponse(
+    (r) =>
+      r.request().method() === "POST" &&
+      r.url().includes("/tools-api/") &&
+      r.status() === 202,
+  );
   await page.getByRole("button", { name: "Extract BOM" }).click();
+  await uploaded;
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(
-    page.getByText("Recognition cancelled. Your drawing is still here."),
+    page.getByText(
+      "Processing cancelled. You can start again or delete the server files.",
+    ),
   ).toBeVisible();
   await expect(page.getByRole("button", { name: "Extract BOM" })).toBeEnabled();
   await page.getByRole("button", { name: "Extract BOM" }).click();

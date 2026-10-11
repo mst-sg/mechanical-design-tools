@@ -1,0 +1,18 @@
+[Unit]
+Description=Delete expired MST drawing files independently of job processing
+
+[Service]
+Type=oneshot
+User=mst-tools-jobs
+Group=mst-tools-jobs
+WorkingDirectory=/opt/mst-tools-jobs/current
+EnvironmentFile=/etc/mst-tools-jobs.env
+ExecStart=/opt/mst-tools-jobs/runtime/bin/node server-dist/cleanup.mjs
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/mst-tools-jobs
+IPAddressDeny=any

@@ -60,16 +60,31 @@ export function App({ path }: { path: string }) {
             <a className="breadcrumb" href="/tools/">
               FREE TOOLS
             </a>
-            <h1>{active?.heading || active?.name || "Small tools. Useful engineering work."}</h1>
+            <h1>
+              {active?.heading ||
+                active?.name ||
+                "Small tools. Useful engineering work."}
+            </h1>
             <p>
               {active?.subtitle ||
                 "Check P&ID tags. Compare BOM revisions. Review drawing data."}
             </p>
           </div>
           <span className="local-note">
-            <span aria-hidden="true">●</span> Runs on your device
+            <span aria-hidden="true">●</span>{" "}
+            {drawing
+              ? "Processed on MST servers"
+              : active
+                ? "Runs on your device"
+                : "Free engineering tools"}
             <br />
-            <small>No sign-in. No file upload.</small>
+            <small>
+              {drawing
+                ? "No sign-in. Temporary private files."
+                : active
+                  ? "No sign-in. No file upload."
+                  : "Processing details on each tool."}
+            </small>
           </span>
         </div>
         {active ? (
@@ -110,9 +125,11 @@ export function App({ path }: { path: string }) {
         <div>
           <strong>MST Open Tools</strong>
           <p>
-            Your selected files stay in browser memory. Refreshing clears them.
-            Tool assets load from this website; no document content is sent to a
-            server.
+            {drawing
+              ? "Drawing to BOM uploads your chosen file to MST for recognition. Original files and results expire within 24 hours; use Delete server files to remove them sooner. Files are not used for model training."
+              : active
+                ? "Your selected files stay in browser memory. Refreshing clears them. Tool assets load from this website; no document content is sent to a server."
+                : "Drawing to BOM uses temporary private server processing. Other tools process files on your device. Each tool explains its processing and deletion policy."}
           </p>
         </div>
         <div>
@@ -192,10 +209,18 @@ function ToolDirectory() {
           <a href="/tools/handbook/#drawing-bom">
             Drawing → checked BOM → revision review
           </a>
-          <a href="/tools/handbook/#connections">P&amp;ID tags → connection table → review list</a>
-          <a href="/tools/handbook/#models">BOM → model index → corrected handoff</a>
-          <a href="/tools/handbook/#line-lists">Line list → reviewed P&amp;ID records → discrepancies</a>
-          <a href="/tools/handbook/#delivery-package">Required deliverables → folder check</a>
+          <a href="/tools/handbook/#connections">
+            P&amp;ID tags → connection table → review list
+          </a>
+          <a href="/tools/handbook/#models">
+            BOM → model index → corrected handoff
+          </a>
+          <a href="/tools/handbook/#line-lists">
+            Line list → reviewed P&amp;ID records → discrepancies
+          </a>
+          <a href="/tools/handbook/#delivery-package">
+            Required deliverables → folder check
+          </a>
           <a href="/tools/handbook/">Engineering tool handbook</a>
         </div>
         <h2>Open code, online tools</h2>
@@ -211,9 +236,12 @@ function ToolDirectory() {
 
 function ToolSketch({ slug }: { slug: string }) {
   const paths: Record<string, string> = {
-    "line-list-check": "M30 30h125v110H30zM30 58h125M30 90h125M70 30v110M215 50h130v80H215zM215 80h130M265 50v80M172 85h24m-8-8 8 8-8 8",
-    "delivery-package-check": "M30 35h105v100H30zM48 58h65M48 80h65M48 102h45M195 55h52l16 15h88v70H195zM235 104l18 18 42-42",
-    "connection-table-check": "M12 20h18v18H12z M62 20h18v18H62z M30 29h32 M71 38v22H21V38 M46 21v16",
+    "line-list-check":
+      "M30 30h125v110H30zM30 58h125M30 90h125M70 30v110M215 50h130v80H215zM215 80h130M265 50v80M172 85h24m-8-8 8 8-8 8",
+    "delivery-package-check":
+      "M30 35h105v100H30zM48 58h65M48 80h65M48 102h45M195 55h52l16 15h88v70H195zM235 104l18 18 42-42",
+    "connection-table-check":
+      "M12 20h18v18H12z M62 20h18v18H62z M30 29h32 M71 38v22H21V38 M46 21v16",
     "bom-model-check":
       "M35 30h130v115H35zM35 60h130M35 90h130M35 120h130M200 80h30M255 55l45-25 45 25v55l-45 25-45-25zM255 55l45 25 45-25M300 80v55",
     "drawing-to-bom":

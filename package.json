@@ -1,6 +1,6 @@
 {
   "name": "mst-mechanical-design-tools",
-  "version": "0.6.3",
+  "version": "0.7.0",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -11,16 +11,20 @@
     "dev": "vite --host 127.0.0.1",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",
-    "build": "node scripts/assets.mjs && node scripts/line-package-labs.mjs && python3 scripts/lab-pack.py && vite build && node scripts/pages.mjs",
+    "build": "node scripts/assets.mjs && node scripts/line-package-labs.mjs && python3 scripts/lab-pack.py && vite build && node scripts/pages.mjs && npm run build:server",
     "preview": "vite preview --host 127.0.0.1 --port 4173",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "build:server": "node scripts/build-server.mjs",
+    "start:jobs": "node server-dist/main.mjs",
+    "test:server": "tsx --test tests/server.test.ts"
   },
   "dependencies": {
     "pdfjs-dist": "6.3.289",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "tesseract.js": "7.0.0",
-    "wasm-feature-detect": "1.9.0"
+    "wasm-feature-detect": "1.9.0",
+    "@napi-rs/canvas": "1.0.9"
   },
   "devDependencies": {
     "@playwright/test": "1.62.1",
@@ -34,6 +38,7 @@
     "prettier": "3.9.8",
     "tsx": "4.23.13",
     "typescript": "7.0.2",
-    "vite": "8.3.0"
+    "vite": "8.3.0",
+    "esbuild": "0.28.2"
   }
 }

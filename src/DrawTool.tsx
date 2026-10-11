@@ -12,7 +12,17 @@ import {
 } from "./types";
 import { fileKind, loadImage, openPdf, pdfPage, type Drawing } from "./files";
 import { downloadCsv, exportBom, numericQuantity } from "./csv";
-import { recognizeDrawing } from "./recognize";
+import {
+  cancelJob,
+  deleteJob,
+  jobEvent,
+  newJob,
+  rememberedJob,
+  rememberJob,
+  uploadJob,
+  waitForJob,
+} from "./jobs";
+import type { JobAccess, JobSnapshot } from "./job-types";
 export function DrawingToBom() {
   const [drawing, setDrawing] = useState<Drawing | null>(null),
     [rows, setRows] = useState<BomRow[]>([]),
@@ -26,6 +36,11 @@ export function DrawingToBom() {
     [lang, setLang] = useState("eng"),
     [page, setPage] = useState(1),
     [pages, setPages] = useState(0);
+  const [managingJob, setManagingJob] = useState(false);
+  const [job, setJob] = useState<JobSnapshot | null>(null);
+  const [access, setAccess] = useState<JobAccess | null>(null);
+  const [retentionHours, setRetentionHours] = useState(24);
+  const originalFile = useRef<File | null>(null);
   const inputMode = useRef<UsageMode>("provided");
   const currentUsage = useRef<UsageRun | null>(null);
   const pdf = useRef<PDFDocumentProxy | null>(null),
@@ -46,7 +61,20 @@ export function DrawingToBom() {
     },
     [drawing],
   );
-  const unavailable = busy || loading;
+  useEffect(() => {
+    const abort = new AbortController();
+    void fetch("/tools-api/health", { signal: abort.signal, cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((value) => {
+        if (value && Number.isFinite(value.retentionHours))
+          setRetentionHours(value.retentionHours);
+      })
+      .catch(() => {});
+    const saved = rememberedJob();
+    if (saved) void resume(saved);
+    return () => abort.abort();
+  }, []);
+  const unavailable = busy || loading || managingJob;
   function resetResults() {
     currentUsage.current = null;
     setRows([]);
@@ -56,6 +84,10 @@ export function DrawingToBom() {
   }
   async function choose(file: File, mode: UsageMode = "provided") {
     inputMode.current = mode;
+    originalFile.current = null;
+    setAccess(null);
+    setJob(null);
+    rememberJob(null);
     const id = ++generation.current;
     resetResults();
     setDrawing(null);
@@ -84,7 +116,10 @@ export function DrawingToBom() {
         setPages(doc.numPages);
         next = await pdfPage(doc, 1, file.name);
       } else next = await loadImage(file, file.name);
-      if (id === generation.current) setDrawing(next);
+      if (id === generation.current) {
+        setDrawing(next);
+        originalFile.current = file;
+      }
     } catch (e) {
       if (id === generation.current)
         setError(
@@ -135,58 +170,156 @@ export function DrawingToBom() {
       if (id === generation.current) setLoading(false);
     }
   }
-  async function recognize() {
-    if (!drawing) return;
-    resetResults();
-    const usage = startUsage(inputMode.current);
-    currentUsage.current = usage;
-    setBusy(true);
-    const id = ++generation.current;
-    const control = new AbortController();
+  async function receiveJob(
+    next: JobAccess,
+    id: number,
+    control: AbortController,
+    usage?: UsageRun,
+  ) {
+    const result = await waitForJob(next, control.signal, (snapshot) => {
+      if (id !== generation.current) return;
+      setJob(snapshot);
+      const messages = {
+        uploading: "Uploading drawing…",
+        queued: "Uploaded. Waiting for recognition…",
+        rendering: "Preparing the selected page…",
+        loading_model: "Loading the server recognition engine…",
+        recognizing: "Reading the parts table on the server…",
+        finished: "Processing finished",
+      };
+      setProgress({
+        message: messages[snapshot.phase],
+        value: snapshot.progress,
+      });
+    });
+    if (id !== generation.current) return;
+    setRows(result.rows);
+    setText(result.text);
+    setNote(result.message);
+    if (result.rows.length) usage?.complete();
+    requestAnimationFrame(() => {
+      if (id === generation.current) void jobEvent(next, "shown");
+    });
+  }
+  async function resume(saved = access) {
+    if (!saved) return;
+    const id = ++generation.current,
+      control = new AbortController();
     controller.current = control;
-    const timeout = window.setTimeout(() => control.abort(), 120000);
+    setAccess(saved);
+    setBusy(true);
+    setError("");
+    setProgress({ message: "Checking your server job…", value: 0 });
     try {
-      const result = await recognizeDrawing(
-        drawing.url,
-        crop,
-        lang,
-        control.signal,
-        (message, value) => {
-          if (id === generation.current) setProgress({ message, value });
-        },
-      );
-      if (id === generation.current) {
-        setRows(result.rows);
-        if (result.rows.length) usage.complete();
-        setText(result.text);
-        setNote(result.message);
-      }
+      await receiveJob(saved, id, control);
     } catch (e) {
-      if (id === generation.current) {
-        currentUsage.current = null;
+      if (id === generation.current)
         setError(
-          control.signal.aborted
-            ? "Recognition stopped. Try a smaller crop or a sharper image."
-            : e instanceof Error
-              ? e.message
-              : "Recognition failed. Try again with a smaller image.",
+          e instanceof Error
+            ? e.message
+            : "The job could not be checked. Try again.",
         );
-      }
     } finally {
-      clearTimeout(timeout);
       if (id === generation.current) {
         setBusy(false);
         controller.current = null;
       }
     }
   }
-  function cancel() {
+  async function recognize() {
+    const file = originalFile.current;
+    if (!drawing || !file) return;
+    resetResults();
+    const usage = startUsage(inputMode.current);
+    currentUsage.current = usage;
+    const id = ++generation.current,
+      control = new AbortController(),
+      next = newJob();
+    controller.current = control;
+    setBusy(true);
+    setAccess(next);
+    setJob(null);
+    rememberJob(next);
+    setProgress({ message: "Uploading drawing to MST…", value: 0 });
+    try {
+      const snapshot = await uploadJob(
+        next,
+        file,
+        {
+          page,
+          crop,
+          language: lang === "chi_sim" ? "chi_sim" : "eng",
+          mode: inputMode.current === "sample" ? "sample" : "provided",
+          traffic:
+            navigator.webdriver ||
+            new URLSearchParams(location.search).get("mst_analytics_test") ===
+              "1"
+              ? "test"
+              : "browser",
+        },
+        control.signal,
+      );
+      if (id !== generation.current) return;
+      setJob(snapshot);
+      await receiveJob(next, id, control, usage);
+    } catch (e) {
+      if (id === generation.current) {
+        currentUsage.current = null;
+        setError(
+          e instanceof Error
+            ? e.message
+            : "Processing failed. Please try again.",
+        );
+      }
+    } finally {
+      if (id === generation.current) {
+        setBusy(false);
+        controller.current = null;
+      }
+    }
+  }
+  async function cancel() {
     currentUsage.current = null;
     generation.current++;
     controller.current?.abort();
     controller.current = null;
     setBusy(false);
-    setNote("Recognition cancelled. Your drawing is still here.");
+    setManagingJob(true);
+    setError("Cancelling processing…");
+    try {
+      if (access) await cancelJob(access);
+      setError(
+        "Processing cancelled. You can start again or delete the server files.",
+      );
+    } catch (e) {
+      setError(
+        e instanceof Error
+          ? e.message
+          : "Cancellation could not be confirmed. Check this job again.",
+      );
+    } finally {
+      setManagingJob(false);
+    }
+  }
+  async function eraseServerFiles() {
+    if (!access) return;
+    setManagingJob(true);
+    setError("");
+    try {
+      await deleteJob(access);
+      setAccess(null);
+      setJob(null);
+      rememberJob(null);
+      setNote(
+        "Server files deleted. Any reviewed rows remain in this tab until you close it.",
+      );
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "Deletion failed. Please try again.",
+      );
+    } finally {
+      setManagingJob(false);
+    }
   }
   function pointer(e: PointerEvent<HTMLDivElement>) {
     const r = e.currentTarget.getBoundingClientRect();
@@ -238,6 +371,7 @@ export function DrawingToBom() {
       currentUsage.current = usage;
       usage.complete();
       usage.export();
+      if (access) void jobEvent(access, "exported");
     });
   }
   return (
@@ -260,6 +394,8 @@ export function DrawingToBom() {
             PNG, JPEG or PDF
             <input
               type="file"
+              aria-label="Choose a PNG, JPEG or PDF drawing"
+              aria-describedby="drawing-file-policy"
               accept=".png,.jpg,.jpeg,.pdf"
               disabled={unavailable}
               onChange={(e) => {
@@ -268,8 +404,13 @@ export function DrawingToBom() {
                 if (f) void choose(f);
               }}
             />
-            <span>Up to 25 MB · Files stay on this device</span>
+            <span>Up to 25 MB · Uploaded when you choose Extract BOM</span>
           </label>
+          <p className="upload-note" id="drawing-file-policy">
+            MST processes the original file on its server. The file and result
+            are deleted within {retentionHours} hours. You can delete them
+            sooner below. Files are not used for model training.
+          </p>
           {loading && (
             <div className="loading" role="status">
               Opening drawing…
@@ -408,14 +549,45 @@ export function DrawingToBom() {
                 </button>
               </div>
               <progress
-                value={progress.value}
+                value={
+                  job?.phase === "recognizing" ? progress.value : undefined
+                }
                 max="1"
                 aria-label="Recognition progress"
               />
               <small>
-                The first run loads the recognition engine. Large pages take
-                longer.
+                Your job continues on the server. Keep this tab to review or
+                delete its result.
               </small>
+            </div>
+          )}
+          {access && !busy && (
+            <div className="server-job">
+              <p>
+                Server job <code>{access.id.slice(0, 8)}</code>
+                {job && (
+                  <>
+                    {" "}
+                    · Files expire {new Date(job.expiresAt).toLocaleString()}
+                  </>
+                )}
+              </p>
+              <div className="preview-actions">
+                <button
+                  className="text-button"
+                  disabled={managingJob}
+                  onClick={() => void resume()}
+                >
+                  Check job again
+                </button>
+                <button
+                  className="text-button"
+                  disabled={managingJob}
+                  onClick={() => void eraseServerFiles()}
+                >
+                  Delete server files
+                </button>
+              </div>
             </div>
           )}
           {error && (

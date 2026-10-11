@@ -24,6 +24,28 @@ async function observe(page: Page) {
       errors.push("Unexpected origin: " + url.origin);
       return route.abort();
     }
+    if (url.pathname.startsWith("/tools-api/")) {
+      const headers: Record<string, string> = {
+        ...request.headers(),
+        origin: "http://127.0.0.1:4173",
+        host: "127.0.0.1:4174",
+      };
+      delete headers["content-length"];
+      const body =
+        request.method() === "GET"
+          ? undefined
+          : request.postDataBuffer() || undefined;
+      const response = await fetch("http://127.0.0.1:4174" + url.pathname, {
+        method: request.method(),
+        headers,
+        body: body as unknown as BodyInit,
+      });
+      return route.fulfill({
+        status: response.status,
+        contentType: response.headers.get("content-type") || "application/json",
+        body: Buffer.from(await response.arrayBuffer()),
+      });
+    }
     if (request.method() === "POST") {
       expect(isVisitRequest(request)).toBe(true);
       events.push(request.postDataJSON());
@@ -115,14 +137,11 @@ test("Drawing OCR zero rows can become a manual result without counting blank ex
 
   // Choosing a new source clears the old attempt. Manual-only output receives
   // its own provided-input attempt instead of inheriting the earlier OCR run.
-  await page
-    .locator('input[type="file"]')
-    .first()
-    .setInputFiles({
-      name: "PRIVATE-next.png",
-      mimeType: "image/png",
-      buffer: drawing,
-    });
+  await page.locator('input[type="file"]').first().setInputFiles({
+    name: "PRIVATE-next.png",
+    mimeType: "image/png",
+    buffer: drawing,
+  });
   await expect(
     page.getByLabel("Row 1 Part number", { exact: true }),
   ).toHaveCount(0);

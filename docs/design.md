@@ -8,7 +8,7 @@ Build two browser tools:
 Acceptance:
 
 - Real image and PDF recognition; owned synthetic sample available.
-- Files processed in browser memory, with self-hosted OCR assets and no file upload API.
+- Drawing-to-BOM uses private, temporary same-origin server jobs; other tools process files in browser memory.
 - Clear scope: extracting an existing table, not inferring hidden components from geometry.
 - Accessible desktop/mobile UI, keyboard controls, loading/cancel/recovery, editable results.
 - Robust quoted CSV parsing, explicit duplicate-key handling, quantity validation and spreadsheet-safe exports.
@@ -18,7 +18,7 @@ Acceptance:
 Implementation decisions:
 
 - Existing printed tables are the extraction scope. OCR and deterministic header/geometry mapping produce drafts for review; no missing quantity is fabricated.
-- Selected files remain in browser memory. Recognition assets are self-hosted and connections restricted to the same origin. No telemetry contains input or output data.
+- Drawing-to-BOM sends the explicitly selected original file to its same-origin job service; it expires within 24 hours or on user deletion. Other tools retain browser-only processing. Operational telemetry contains no input/output content.
 - The owned sample drawing is clearly marked synthetic and not for manufacture. PNG and raster PDF exercise the actual recognition path.
 - Desktop preview/result columns stack on mobile. Tables intentionally scroll horizontally; all editable cells and mappings have accessible names.
 - Empty, loading, cancellation, decoding failure, unrecognized headers, invalid CSV/quantity, duplicates and no-change paths are visible.

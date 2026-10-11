@@ -1,0 +1,10 @@
+[Unit]
+Description=Periodically remove expired MST drawing files
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target
