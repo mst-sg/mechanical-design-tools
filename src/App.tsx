@@ -23,12 +23,21 @@ export function App({ path }: { path: string }) {
       </a>
       <header className="site-header">
         <div className="shell masthead">
-          <a className="brand" href="https://mst-us.ai/" aria-label="MST home">
+          <a
+            className="brand"
+            href="https://mst-us.ai/"
+            target="_top"
+            aria-label="MST home"
+          >
             MST<span>ENGINEERING INTELLIGENCE</span>
           </a>
           <nav aria-label="Site navigation">
-            <a href="https://mst-us.ai/product/">Product</a>
-            <a href="https://mst-us.ai/news/">News</a>
+            <a href="https://mst-us.ai/product/" target="_top">
+              Product
+            </a>
+            <a href="https://mst-us.ai/news/" target="_top">
+              News
+            </a>
             <details>
               <summary>
                 Free Tools <span aria-hidden="true">⌄</span>
@@ -40,7 +49,11 @@ export function App({ path }: { path: string }) {
                 <a href="/tools/">All free tools</a>
               </div>
             </details>
-            <a className="support-link" href="https://mst-us.ai/research/">
+            <a
+              className="support-link"
+              href="https://mst-us.ai/research/"
+              target="_top"
+            >
               Support
             </a>
             <a
@@ -140,11 +153,19 @@ export function App({ path }: { path: string }) {
           >
             Source code & documentation ↗
           </a>
-          <a href="https://mst-us.ai/contact/?intent=partner#partnerships">
+          <a
+            href="https://mst-us.ai/contact/?intent=partner#partnerships"
+            target="_top"
+          >
             Build with MST →
           </a>
           <a href="/tools/licenses.html">Open-source licenses</a>
-          <a href="/privacy/#page-visit-measurement">Page visit privacy</a>
+          <a
+            href="https://mst-us.ai/privacy/#page-visit-measurement"
+            target="_top"
+          >
+            Page visit privacy
+          </a>
         </div>
       </footer>
     </>
@@ -160,10 +181,13 @@ function EngineeringDemo() {
         engineering team needs.
       </p>
       <div className="related-links">
-        <a href="https://mst-us.ai/product/#equipment-assembly-demo">
+        <a
+          href="https://mst-us.ai/product/#equipment-assembly-demo"
+          target="_top"
+        >
           Watch the assembly demo →
         </a>
-        <a href="https://mst-us.ai/contact/?intent=challenge">
+        <a href="https://mst-us.ai/contact/?intent=challenge" target="_top">
           Request a demo for your team →
         </a>
       </div>
@@ -195,8 +219,12 @@ function ToolDirectory() {
       <section className="guide">
         <h2>More drawing tools</h2>
         <div className="related-links">
-          <a href="https://mst-us.ai/drawingdiff/diff">Drawing comparison ↗</a>
-          <a href="https://mst-us.ai/drawingdiff/clean">Watermark remover ↗</a>
+          <a href="https://mst-us.ai/drawingdiff/diff" target="_top">
+            Drawing comparison ↗
+          </a>
+          <a href="https://mst-us.ai/drawingdiff/clean" target="_top">
+            Watermark remover ↗
+          </a>
         </div>
         <p>
           These existing DrawingDiff services have separate processing and usage

@@ -27,6 +27,7 @@ import {
   readJobReceipt,
 } from "./jobs";
 import type { JobAccess, JobSnapshot } from "./job-types";
+import type { BomWorkbookSource } from "./bom-workbook";
 export function DrawingToBom() {
   const [drawing, setDrawing] = useState<Drawing | null>(null),
     [rows, setRows] = useState<BomRow[]>([]),
@@ -47,7 +48,10 @@ export function DrawingToBom() {
   const [contactEmail, setContactEmail] = useState("");
   const [engine, setEngine] = useState("");
   const [browserReady, setBrowserReady] = useState(false);
+  const [exportingExcel, setExportingExcel] = useState(false);
+  const [exportError, setExportError] = useState("");
   const originalFile = useRef<File | null>(null);
+  const resultSource = useRef<BomWorkbookSource>({});
   const inputMode = useRef<UsageMode>("provided");
   const currentUsage = useRef<UsageRun | null>(null);
   const restoredResult = useRef(false);
@@ -83,8 +87,9 @@ export function DrawingToBom() {
     if (saved) void resume(saved);
     return () => abort.abort();
   }, []);
-  const unavailable = busy || loading || managingJob;
+  const unavailable = busy || loading || managingJob || exportingExcel;
   function resetResults() {
+    resultSource.current = {};
     currentUsage.current = null;
     restoredResult.current = false;
     setRows([]);
@@ -92,6 +97,7 @@ export function DrawingToBom() {
     setNote("");
     setEngine("");
     setError("");
+    setExportError("");
   }
   async function choose(file: File, mode: UsageMode = "provided") {
     inputMode.current = mode;
@@ -225,6 +231,10 @@ export function DrawingToBom() {
     controller.current?.abort();
     if (saved.id !== access?.id) {
       resetResults();
+      resultSource.current = {
+        filename: savedJobs().find((item) => item.id === saved.id)?.filename,
+        jobId: saved.id,
+      };
       originalFile.current = null;
       setDrawing(null);
       setPages(0);
@@ -277,6 +287,14 @@ export function DrawingToBom() {
     const id = ++generation.current,
       control = new AbortController(),
       next = newJob();
+    // Bind provenance to the submitted recognition area. The crop controls
+    // remain editable after completion and must not relabel an older result.
+    resultSource.current = {
+      filename: file.name,
+      page,
+      crop: { ...crop },
+      jobId: next.id,
+    };
     controller.current = control;
     setBusy(true);
     setAccess(next);
@@ -373,7 +391,7 @@ export function DrawingToBom() {
     };
   }
   function move(e: PointerEvent<HTMLDivElement>) {
-    if (!drag.current) return;
+    if (!drag.current || unavailable) return;
     const end = pointer(e),
       start = drag.current;
     setCrop({
@@ -398,29 +416,56 @@ export function DrawingToBom() {
       prev.map((r) => (r.id === id ? { ...r, [field]: value } : r)),
     );
   }
-  function exportRows() {
+  function recordExport() {
     const usable = rows.some(
       (row) =>
         (row.partNumber.trim() || row.description.trim()) &&
         numericQuantity(row.quantity) !== null,
     );
-    downloadCsv(exportBom(rows), "bom-reviewed.csv", () => {
-      if (!usable) {
-        // Keep an already completed OCR result exportable without treating
-        // blank or unfinished manual entries as a newly completed result.
-        currentUsage.current?.export();
-        return;
-      }
-      if (restoredResult.current && !currentUsage.current) {
-        if (access) void jobEvent(access, "exported");
-        return;
-      }
-      const usage = currentUsage.current ?? startUsage(inputMode.current);
-      currentUsage.current = usage;
-      usage.complete();
-      usage.export();
+    if (!usable) {
+      // Keep an already completed OCR result exportable without treating
+      // blank or unfinished manual entries as a newly completed result.
+      currentUsage.current?.export();
+      return;
+    }
+    if (restoredResult.current && !currentUsage.current) {
       if (access) void jobEvent(access, "exported");
-    });
+      return;
+    }
+    const usage = currentUsage.current ?? startUsage(inputMode.current);
+    currentUsage.current = usage;
+    usage.complete();
+    usage.export();
+    if (access) void jobEvent(access, "exported");
+  }
+  function exportRows() {
+    downloadCsv(exportBom(rows), "bom-reviewed.csv", recordExport);
+  }
+  async function exportExcel() {
+    if (unavailable || !rows.length) return;
+    setExportingExcel(true);
+    setExportError("");
+    // Capture the visible draft before the asynchronous module load. Restored
+    // results do not imply that the browser knows the original PDF page/crop.
+    const snapshot = rows.map((row) => ({ ...row }));
+    const source = {
+      filename: drawing?.name,
+      ...resultSource.current,
+      engine,
+      text,
+    };
+    try {
+      const { downloadBomWorkbook } = await import("./bom-workbook");
+      await downloadBomWorkbook(snapshot, source, recordExport);
+    } catch (e) {
+      setExportError(
+        e instanceof Error
+          ? e.message
+          : "Excel export failed. Your rows are still here; try again.",
+      );
+    } finally {
+      setExportingExcel(false);
+    }
   }
   return (
     <>
@@ -698,20 +743,21 @@ export function DrawingToBom() {
               <div className="preview-actions">
                 <button
                   className="text-button"
+                  disabled={unavailable}
                   onClick={() => downloadJobReceipt(access)}
                 >
                   Save private job receipt
                 </button>
                 <button
                   className="text-button"
-                  disabled={managingJob}
+                  disabled={unavailable}
                   onClick={() => void resume()}
                 >
                   Check job again
                 </button>
                 <button
                   className="text-button"
-                  disabled={managingJob}
+                  disabled={unavailable}
                   onClick={() => void eraseServerFiles()}
                 >
                   Delete server files
@@ -786,6 +832,7 @@ export function DrawingToBom() {
                                 : ""
                             }
                             value={row[f]}
+                            disabled={unavailable}
                             onChange={(e) => update(row.id, f, e.target.value)}
                           />
                         </td>
@@ -804,6 +851,7 @@ export function DrawingToBom() {
                         <button
                           className="icon-button"
                           aria-label={`Delete row ${index + 1}`}
+                          disabled={unavailable}
                           onClick={() =>
                             setRows((r) => r.filter((x) => x.id !== row.id))
                           }
@@ -826,16 +874,29 @@ export function DrawingToBom() {
               + Add row
             </button>
             <button
-              className="button primary"
+              className="button secondary"
               disabled={!rows.length || unavailable}
               onClick={exportRows}
             >
               Export CSV ↓
             </button>
+            <button
+              className="button primary"
+              disabled={!rows.length || unavailable}
+              onClick={() => void exportExcel()}
+            >
+              {exportingExcel ? "Preparing Excel…" : "Export Excel (.xlsx) ↓"}
+            </button>
           </div>
+          {exportError && (
+            <p className="notice error" role="alert">
+              {exportError}
+            </p>
+          )}
           <p className="hint">
-            UTF-8 CSV opens in Excel, Google Sheets and most PDM tools. Review
-            before ordering or changing an assembly.
+            Excel includes your current rows, source details and review notes.
+            CSV is also available. Check the draft before ordering or changing
+            an assembly.
           </p>
           {text && (
             <details className="source-text">

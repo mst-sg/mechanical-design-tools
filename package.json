@@ -1,6 +1,6 @@
 {
   "name": "mst-mechanical-design-tools",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -17,15 +17,17 @@
     "build:server": "node scripts/build-server.mjs",
     "start:jobs": "node server-dist/main.mjs",
     "test:server": "tsx --test tests/server.test.ts",
-    "build:gateway": "node scripts/gateway.mjs"
+    "build:gateway": "node scripts/gateway.mjs",
+    "build:us-gateway": "node scripts/us-gateway.mjs"
   },
   "dependencies": {
+    "@napi-rs/canvas": "1.0.9",
+    "exceljs": "4.4.0",
     "pdfjs-dist": "6.3.289",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "tesseract.js": "7.0.0",
-    "wasm-feature-detect": "1.9.0",
-    "@napi-rs/canvas": "1.0.9"
+    "wasm-feature-detect": "1.9.0"
   },
   "devDependencies": {
     "@playwright/test": "1.62.1",
@@ -35,11 +37,11 @@
     "@types/node": "26.6.2",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
+    "esbuild": "0.28.2",
     "pdf-lib": "1.17.1",
     "prettier": "3.9.8",
     "tsx": "4.23.13",
     "typescript": "7.0.2",
-    "vite": "8.3.0",
-    "esbuild": "0.28.2"
+    "vite": "8.3.0"
   }
 }

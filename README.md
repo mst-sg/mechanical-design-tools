@@ -6,7 +6,7 @@ Free tools for mechanical engineers, used directly on [mst-us.ai](https://mst-us
 | ------------------ | -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
 | P&ID Tag Check     | Read printed tags, correct the list and compare it with reference tags                                         | [Use P&ID Tag Check](https://mst-us.ai/tools/pid-tag-check/?utm_source=github&utm_medium=repository&utm_campaign=us_mechanical_tools)          |
 | BOM Compare        | Compare two CSV revisions by part number, review changes, export the difference                                | [Use BOM Compare](https://mst-us.ai/tools/bom-compare/?utm_source=github&utm_medium=repository&utm_campaign=us_mechanical_tools)               |
-| Drawing to BOM     | Read an existing parts table from an image or PDF, edit the rows, export CSV                                   | [Use Drawing to BOM](https://mst-us.ai/tools/drawing-to-bom/?utm_source=github&utm_medium=repository&utm_campaign=us_mechanical_tools)         |
+| Drawing to BOM     | Read an existing parts table from an image or PDF, edit the rows, export Excel or CSV                          | [Use Drawing to BOM](https://mst-us.ai/tools/drawing-to-bom/?utm_source=github&utm_medium=repository&utm_campaign=us_mechanical_tools)         |
 | BOM Check          | Find missing values and conflicting or repeated parts, edit without losing custom columns, export reviewed CSV | [Use BOM Check](https://mst-us.ai/tools/bom-check/?utm_source=github&utm_medium=repository&utm_campaign=us_mechanical_tools)                   |
 | Title Block Reader | Read labelled drawing fields, review sheets, export a drawing register                                         | [Use Title Block Reader](https://mst-us.ai/tools/title-block-reader/?utm_source=github&utm_medium=repository&utm_campaign=us_mechanical_tools) |
 
@@ -61,7 +61,7 @@ Both examples use synthetic data. Their illustrated guides describe expected fin
 
 1. Select a PNG, JPEG or PDF (up to 25 MB), or try the included synthetic example.
 2. Choose the PDF page and crop around the table, including the headers.
-3. Extract, review and correct the rows, then download a UTF-8 CSV for Excel or Google Sheets.
+3. Extract, review and correct the rows, then download an Excel `.xlsx` or UTF-8 CSV. Excel includes source details and review notes, retains text identifiers and flags unknown quantities without inventing them. The export contains the current edited draft; reloading restores the original recognition result from the server.
 
 This version extracts an **existing printed BOM or parts list**. It does not infer components from geometry, reconstruct assembly structure or guess missing quantities. OCR can confuse similar characters, split wrapped descriptions or assign text to the wrong column. The drawing remains visible for checking. Merged cells, rotated tables and low-resolution scans may need manual correction.
 
@@ -120,13 +120,15 @@ npm run test:e2e
 
 CI verifies the server image/PDF rendering and Paddle response contract with a labelled test double, browser OCR for other tools, editable CSV output, revision differences, conservative BOM combining, drawing registers, exact tag reconciliation, cancellation and invalid input, desktop/mobile layout, JavaScript-free discovery and document-upload absence. Browser console failures are checked; known Tesseract diagnostics about tiny symbol fragments in the P&ID fixture are retained separately in evidence, with all expected tag values still asserted. Fixtures are synthetic and are not customer drawings. Passing these examples is not a benchmark of arbitrary drawing accuracy.
 
-To run the same browser verification against an existing release, set `MST_TOOLS_BASE_URL=https://mst-us.ai` before `npm run test:e2e`. These flows use owned synthetic fixtures. Drawing-to-BOM creates private QA server jobs that must be deleted after verification; other tools process fixtures locally. Never use customer drawings in automated tests.
+For a standalone release, `MST_TOOLS_BASE_URL` selects the tool origin. The US embedded release has separate root-entry and child-origin checks; follow [US deployment and acceptance](deploy/US-DRAWING-BOM.md) instead of treating a direct child test as a public-entry pass. These flows use owned synthetic fixtures. Drawing-to-BOM creates private QA server jobs that must be deleted after verification; other tools process fixtures locally. Never use customer drawings in automated tests.
 
 ## Architecture and release
 
 React/TypeScript provides the interface. [PDF.js](https://mozilla.github.io/pdf.js/) renders a selected PDF page. [PaddleOCR](https://www.paddleocr.ai/latest/en/quick_start.html) reads Drawing-to-BOM text on MST’s GPU through an authenticated private adapter. Title-block and P&ID reading retain local Tesseract.js workers. Long table rules are removed from a temporary recognition image; the source preview remains intact. Word positions and recognizable headers map text into reviewable rows. CSV parsing and revision comparison are deterministic.
 
 `npm run build` produces a static `dist/` directory for mounting at `/tools/`, plus an SHA-256 file manifest in `release.json` and a small sitemap. Dependencies are pinned by `package-lock.json`. Publish only an artifact from a successful main-branch verification run, keep the prior directory for rollback, and verify the public tools after promotion. Drawing-to-BOM requires the private GPU processing service and SQLite metadata store. `npm run build:gateway` produces the trusted HTTPS gateway variant at `/engineering-tools/`.
+
+For the US Drawing-to-BOM release, `npm run build:us-gateway` produces the isolated `tools.mst-us.ai` artifact and `deploy/us-entry` contains the edge shell for the unchanged public URL `https://mst-us.ai/tools/drawing-to-bom/`. Deployment and production acceptance are separate from merging this code; see [the US runbook](deploy/US-DRAWING-BOM.md).
 
 The website's main navigation is maintained separately. Publishing this repository does not by itself change the website theme.
 
