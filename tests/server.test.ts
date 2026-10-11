@@ -10,9 +10,11 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve, join } from "node:path";
-import { randomBytes, randomUUID } from "node:crypto";
+import { randomBytes, randomUUID, createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { createJobService } from "../server/app";
 import { configuration, type Config } from "../server/config";
+import { paddleDouble } from "./fixtures/paddle-double";
 import type { JobSnapshot, JobResult } from "../src/job-types";
 const options = {
   page: 1,
@@ -201,7 +203,7 @@ test("stuck process is killed, terminal timeout persists and the slot recovers",
   assert.equal((await f.done(b)).state, "timed_out");
 });
 test("expiry removes original/results and access, while anonymous counters remain", async (t) => {
-  const f = await fixture(t),
+  const f = await fixture(t, { retentionMs: 10000 }),
     a = f.access();
   await f.req(a, "POST", "", tiny);
   await f.done(a);
@@ -230,10 +232,14 @@ test("rate limit and storage cap do not accept another file", async (t) => {
   assert.equal((await g.req(g.access(), "POST", "", tiny)).status, 503);
 });
 test(
-  "real server PNG and PDF OCR preserve original bytes and return five verified rows",
+  "real PNG/PDF rendering and Paddle contract preserve originals and map five fixture rows",
   { timeout: 150000 },
   async (t) => {
+    const paddle = await paddleDouble();
+    t.after(() => paddle.close());
     const f = await fixture(t, {
+      paddleUrl: paddle.url,
+      paddleToken: paddle.token,
       workerPath: resolve("server-dist/worker.mjs"),
       jobTimeoutMs: 60000,
     });
@@ -278,12 +284,12 @@ test(
 );
 
 test(
-  "a missing real OCR model reports model_unavailable without the old two-minute wait",
+  "an unavailable Paddle adapter reports model_unavailable promptly",
   { timeout: 15000 },
   async (t) => {
     const f = await fixture(t, {
       workerPath: resolve("server-dist/worker.mjs"),
-      assetsDir: resolve(".artifacts/nonexistent-model-assets"),
+      paddleUrl: "http://127.0.0.1:1",
     });
     const a = f.access(),
       started = Date.now();
@@ -312,4 +318,161 @@ test("uncompleted durable records become an explicit restart failure", async (t)
   assert.equal(restored.store.get(a.id)!.state, "failed");
   assert.equal(restored.store.get(a.id)!.error, "interrupted");
   await restored.close();
+});
+
+test("retained uploads preserve private visitor/file/result records and deletion removes those records", async (t) => {
+  const f = await fixture(t, { retentionMs: 0 }),
+    a = f.access();
+  const context = {
+    visitorId: randomUUID(),
+    filename: "../图纸.png",
+    contactEmail: "fixture@example.invalid",
+    referrerHost: "mst-us.ai",
+  };
+  await f.req(a, "POST", "", tiny, {
+    "X-MST-Upload-Context": encodeURIComponent(JSON.stringify(context)),
+  });
+  await f.done(a);
+  f.app.sweep(Date.now() + 365 * 86400_000);
+  const stored = f.app.store.db
+    .prepare("SELECT * FROM upload_context WHERE job_id=?")
+    .get(a.id)!;
+  assert.equal(stored.filename, "图纸.png");
+  assert.equal(stored.visitor_id, context.visitorId);
+  assert.equal(stored.contact_email, context.contactEmail);
+  assert.equal(stored.sha256, createHash("sha256").update(tiny).digest("hex"));
+  assert.equal(stored.result_rows, 1);
+  assert.match(String(stored.network_id), /^[a-f0-9]{64}$/);
+  const snapshot = await (await f.req(a)).text();
+  assert.doesNotMatch(snapshot, /filename|contact_email|fixture@example/);
+  assert.equal(f.app.store.get(a.id)!.expires, 0);
+  const cleanup = execFileSync(
+    process.execPath,
+    [resolve("server-dist/cleanup.mjs")],
+    {
+      env: { ...process.env, MST_JOBS_DATA: f.config.dataDir },
+      encoding: "utf8",
+    },
+  );
+  assert.equal(JSON.parse(cleanup).removed, 0);
+  assert.ok(existsSync(join(f.app.store.dir(a.id), "source")));
+  await f.req(a, "DELETE");
+  assert.equal(
+    f.app.store.db.prepare("SELECT COUNT(*) n FROM upload_context").get()!.n,
+    0,
+  );
+  assert.equal(existsSync(f.app.store.dir(a.id)), false);
+});
+
+test("gateway authentication precedes forwarded identity and still requires the job capability", async (t) => {
+  const token = "test-gateway-".repeat(4);
+  const f = await fixture(t, {
+    trustProxy: true,
+    gatewayToken: token,
+    gatewayAddress: "127.0.0.1",
+  });
+  const a = f.access(),
+    headers = { "X-MST-Gateway-Token": token, "X-Real-IP": "203.0.113.7" };
+  assert.equal((await f.req(a, "POST", "", tiny)).status, 403);
+  assert.equal(
+    (
+      await f.req(a, "POST", "", tiny, {
+        ...headers,
+        "X-MST-Gateway-Token": "bad",
+      })
+    ).status,
+    403,
+  );
+  assert.equal(
+    (
+      await f.req(a, "POST", "", tiny, {
+        ...headers,
+        "X-Real-IP": "203.0.113.7, 127.0.0.1",
+      })
+    ).status,
+    400,
+  );
+  assert.equal(
+    (
+      await f.req(a, "POST", "", tiny, {
+        ...headers,
+        Origin: "https://mst-us.ai",
+      })
+    ).status,
+    403,
+  );
+  assert.equal((await f.req(a, "POST", "", tiny, headers)).status, 202);
+  assert.equal(
+    (
+      await f.req(
+        { ...a, token: f.access().token },
+        "GET",
+        "",
+        undefined,
+        headers,
+      )
+    ).status,
+    404,
+  );
+  assert.equal((await f.req(a, "GET", "", undefined, headers)).status, 200);
+  const g = await fixture(t, {
+    trustProxy: true,
+    gatewayToken: token,
+    gatewayAddress: "203.0.113.99",
+  });
+  assert.equal(
+    (await g.req(g.access(), "POST", "", tiny, headers)).status,
+    403,
+  );
+});
+
+test("bad private metadata and low disk space refuse admission without creating a file", async (t) => {
+  const f = await fixture(t),
+    a = f.access();
+  assert.equal(
+    (await f.req(a, "POST", "", tiny, { "X-MST-Upload-Context": "%not-json" }))
+      .status,
+    400,
+  );
+  const g = await fixture(t, { minFreeBytes: Number.MAX_SAFE_INTEGER });
+  assert.equal((await g.req(g.access(), "POST", "", tiny)).status, 503);
+  assert.equal(g.app.store.all().length, 0);
+});
+
+test("private metadata initialization failure releases pending capacity", async (t) => {
+  const f = await fixture(t, {
+    perAddressPending: 1,
+    maxStoredBytes: tiny.length,
+  });
+  const original = f.app.store.context;
+  f.app.store.context = () => {
+    throw new Error("injected database write failure");
+  };
+  const a = f.access();
+  assert.equal((await f.req(a, "POST", "", tiny)).status, 422);
+  assert.equal(f.app.store.get(a.id)?.state, "failed");
+  assert.equal(f.app.store.get(a.id)?.bytes, 0);
+  assert.equal(existsSync(f.app.store.dir(a.id)), false);
+  f.app.store.context = original;
+  assert.equal((await f.req(f.access(), "POST", "", tiny)).status, 202);
+});
+
+test("cancelling a slow inference does not fail the next accepted job while Paddle is busy", async (t) => {
+  const paddle = await paddleDouble(2500);
+  t.after(() => paddle.close());
+  const f = await fixture(t, {
+    workerPath: resolve("server-dist/worker.mjs"),
+    paddleUrl: paddle.url,
+    paddleToken: paddle.token,
+    jobTimeoutMs: 8000,
+  });
+  const first = f.access(),
+    second = f.access();
+  const body = readFileSync("public/samples/bracket-bom.png");
+  await f.req(first, "POST", "", body);
+  await new Promise((r) => setTimeout(r, 500));
+  await f.req(first, "POST", "/cancel");
+  assert.equal((await f.req(second, "POST", "", body)).status, 202);
+  assert.equal((await f.done(first)).state, "cancelled");
+  assert.equal((await f.done(second)).state, "succeeded");
 });

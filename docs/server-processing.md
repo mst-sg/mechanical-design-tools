@@ -1,43 +1,53 @@
 # Drawing-to-BOM server processing
 
-Drawing-to-BOM uploads the original PNG/JPEG/PDF only when the visitor chooses **Extract BOM**. The selected PDF page and crop are sent as bounded options. The service uses the same table extraction rules with preinstalled Tesseract language assets; it does not infer unseen parts or use an external model provider. Other tools retain their current browser processing.
+Choosing **Extract BOM** uploads the original PNG/JPEG/PDF to MST's private GPU server. Node renders the selected page/crop, then a private PaddleOCR adapter reads printed text on a GPU. The adapter accepts PNG bytes only, never a caller-controlled path or URL. Positioned text and recognizable table headers become reviewable BOM rows. It does not infer unseen parts. Other tools keep their current browser processing.
 
-The original and recognized result are private temporary files. No filenames are stored. A 256-bit random bearer capability, held in the current tab's session storage, is required for every status, result, acknowledgement, cancellation and deletion request. It is never put in links. Reloading that tab restores the job. Closing the tab loses that capability; automatic deletion still applies. Starting another input replaces the tab's current job, while any earlier job expires automatically.
+Originals and recognized results are retained until the visitor or an administrator deletes them. A 256-bit bearer capability protects status, results, cancellation and deletion; it never appears in a URL. Browser local storage retains previous jobs across tab closures. Visitors can save a private JSON receipt and import it to retrieve or delete that job after clearing browser storage. Anyone with that receipt can access the job. No file backups or model-training use are configured.
 
-Files/results expire after 24 hours; API access stops at expiry. The running service sweeps every five seconds and a separate minute timer removes expired data even while job processing is stopped. A complete host shutdown delays physical deletion until it returns; overdue jobs are never made accessible on restart. No job file backups or training use are configured. Immediate deletion removes the original, output and capability record. Reviewed rows already displayed in the browser remain until that tab is closed or another drawing is selected.
+Deletion removes the original, result, access record and associated private upload context. Reviewed rows already shown in a tab remain until the tab closes or another input is selected. Anonymous daily aggregates survive deletion for 180 days. An optional positive `MST_JOBS_RETENTION_DAYS` enables expiry; both the running service and standalone cleanup honor the same stored deadline. Zero means no automatic expiry.
 
-## Operational records
+## Private usage records
 
-SQLite records uploading, queued, processing, succeeded, empty, failed, timed_out and cancelled. A terminal error contains a fixed code, never parser output. Result fetched, displayed and export acknowledgements are distinct and idempotent. Empty results do not count as a usable BOM. These are operations/attempts, not people or verified customers. Client display acknowledgement is best effort if its network connection disappears.
+SQLite joins each job with its original filename, SHA-256, anonymous browser visitor ID, keyed network identifier, optional self-reported email, referrer hostname, bounded user agent, selected page/crop, processing states, engine version/device, row count and retrieval/display/export events. Filename is display metadata, never a storage path. These records are private and only readable through authorized server access. Anonymous IDs and unverified email do not establish a person's real identity and never grant access to files.
 
-Daily UTC+8 aggregates contain only date, test/browser category, sample/provided mode, event, fixed error code and count. They survive file deletion for 180 days. Job capabilities/identifiers are absent from aggregates. Short-lived keyed network hashes enforce quotas without retaining raw addresses in the database; request metadata may still be present in normal web-server access logs.
+Run `MST_JOBS_DATA=/private/data node server-dist/report.mjs YYYY-MM-DD` for UTC+8 daily counts; add `--jobs` for private upload details. Never publish that output. Use `traffic:test` for synthetic QA; it is reported separately and does not bypass limits. The trusted gateway records upload/result/export outcomes in this job service. Its page requests remain visible in gateway access logs. The legacy optional WordPress tracker is omitted there because that collector only accepts its existing /tools/ routes; do not claim these new pages appear in the legacy JavaScript funnel. Other deployments retain their separate optional tracker and GPC/DNT choices.
 
-Run `MST_JOBS_DATA=/private/data node server-dist/report.mjs YYYY-MM-DD` for read-only counts. QA must send `traffic:test` and is reported separately. Marking a run as QA does not bypass resource limits. Existing optional page/usage analytics and its GPC/DNT choices remain separate; the operational record delivers and diagnoses the explicitly requested job.
+## Verification
 
-## Local development and verification
+Use Node 24: `npm ci`, `npm run build`, `npm run build:gateway`, `npm test`, `npm run test:e2e`. CI uses a clearly labelled test-only Paddle HTTP response fixture to verify rendering, transport, table mapping, persistence, negative access checks and browser flows. It does **not** prove GPU inference or general OCR accuracy. The test host cannot serve production.
 
-Use Node 24. `npm ci`, `npm run build`, `npm test`, `npm run test:e2e`. The browser harness starts preview on 4173 and a test-only job host on 4174. Its fixtures contain no customer information. The test host is not a production entrypoint.
+A release separately requires real Paddle GPU recognition of owned PNG/PDF fixtures with exact expected part/quantity rows, original-byte readback on the designated GPU server, private metadata/result joins, restart and receipt recovery, wrong-token refusal, cancellation/deletion, useful failures and public desktop/mobile verification. Passing synthetic examples is not an accuracy benchmark for arbitrary engineering drawings.
 
-Server tests cover original-byte persistence and actual PNG/PDF OCR, access isolation, same-origin mutation checks, limits, bad input, worker faults, timeout, queue recovery, expiry and deletion. Browser tests cover row review/export, cancellation, server-result restoration, failure feedback and mobile controls. Exact expected rows are required; a visible page or a successful HTTP response alone is insufficient.
+## Production
 
-## Production deployment
+Publish exact passing main CI artifacts: `mechanical-gateway-<SHA>` on the trusted HTTPS gateway and `mechanical-jobs-<SHA>` on the GPU host. Verify all manifest hashes. The gateway build rewrites the static `/tools/` mount to `/engineering-tools/` and its API to `/engineering-tools-api/`; all processing code/assets and requests load from the trusted origin. Any former host may redirect visitors only; it must not serve the new upload page or receive service credentials.
 
-Publish the exact passing CI static artifact and `mechanical-jobs-<SHA>` backend artifact. Verify every manifest digest. Install production dependencies from the exact lockfile in a root-owned, versioned backend directory and pin a separate Node 24 runtime; do not replace the host's system Node. Service code/dependencies are immutable to its unprivileged `mst-tools-jobs` account.
+Run immutable code and dependencies in bounded unprivileged containers. Pin a private Node 24 runtime and an isolated Paddle GPU environment; do not change neighboring model runtimes. The Paddle container has one GPU, preloaded local weights, no public port and no external network. The job container shares its private internal network and also joins a dedicated ingress bridge, publishing its API only on the private host address. Its entrypoint sets rules in its own network namespace: only the verified local port-proxy peer may connect, and only the private Paddle endpoint is allowed for new outbound connections. Initial NET_ADMIN/SETUID/SETGID/SETPCAP capabilities are dropped completely before the Node process starts. No host firewall rules are changed. Read-only code/root filesystems, dropped capabilities, private data mounts and memory/CPU/PID limits are required. The Paddle process exits on a 75-second inference watchdog and restarts under the container supervisor; Node's worker deadline is 90 seconds.
 
-Required environment file:
+Required job configuration (secret values are supplied outside the repository):
 
 ```text
-MST_JOBS_ORIGIN=https://your-canonical-domain
-MST_JOBS_DATA=/var/lib/mst-tools-jobs
-MST_JOBS_ASSETS=/opt/mst-tools-jobs/current/server-assets
+NODE_ENV=production
+MST_JOBS_ORIGIN=https://your-trusted-origin
+MST_JOBS_DATA=/private/data
+MST_JOBS_ASSETS=/app/server-assets
+MST_JOBS_BIND=0.0.0.0
 MST_JOBS_PORT=4174
+MST_JOBS_RETENTION_DAYS=0
 MST_JOBS_TRUST_PROXY=1
+MST_JOBS_GATEWAY_ADDRESS=<verified-socket-peer>
+MST_JOBS_GATEWAY_TOKEN=<private-random-secret>
+MST_JOBS_PADDLE_URL=http://<private-paddle-container-address>:7018
+MST_JOBS_PADDLE_IP=<private-paddle-container-address>
+MST_JOBS_PADDLE_TOKEN=<different-private-random-secret>
 ```
 
-The service binds only to loopback. Use the checked `deploy/` systemd units and insert the Nginx fragment only into the canonical site's HTTPS server. The proxy must overwrite the trusted client address and already validate any CDN real-IP header. No wildcard CORS, public listing, original-file URL or generic shared `/api/` route is added. Restrict outbound network access; assets/models must be local. Keep the unrelated website and application routes intact.
+Paddle requires `MST_PADDLE_TOKEN`, `MST_PADDLE_BIND=0.0.0.0` and project-local model-cache paths. GPU capability and the selected GPU device are checked; CPU fallback is refused. The runtime image template installs only system libraries. Install pinned Paddle packages in an isolated Python 3.12 environment and record the complete resolved dependency list, image digest and model checksums in the private release receipt.
 
-Resource defaults: 25 MiB per file, 60 megapixel input image, 8 megapixel recognition image, one worker, 12 total pending jobs, two pending per network address, 20 admissions over current/previous hourly buckets, 1 GiB stored originals, 45-second upload deadline, 90-second worker deadline and approximately two-minute queue bound. The systemd cgroup caps total memory/CPU/tasks. A worker is a separate killed-on-timeout process; it runs without service secrets or ambient application environment. Decoder faults cannot leave an indefinitely pending client job.
+The Node API verifies the actual socket peer and a separate gateway credential before trusting `X-Real-IP`. A Docker userland port proxy can replace the original gateway source IP with its dedicated bridge address. In that deployment, pin the verified local proxy address: it proves the local proxy path, while the dedicated 256-bit credential authenticates the HTTPS gateway. Do not claim the container also enforces the original SG source IP. The gateway overwrites incoming gateway/IP headers and preserves the independent job `Authorization` header. Trust CDN IP headers only from verified proxy ranges. Same-origin mutation checks remain enabled; no cross-origin access, public listing or original-file URL is provided.
 
-Before switching the public frontend, test the backend over loopback with a synthetic fixture and verify private original/result readback, a wrong token, forced failure, expiry timer and no third-party egress. Then switch the static release atomically and perform public desktop/mobile PNG/PDF/result/CSV/delete tests; query the private QA counters. Preserve old static/backend links, environment and Nginx configuration for rollback. On rollback remove only the new route/service, restore the prior static link and retain the cleanup timer for already accepted temporary files; do not delete unrelated data.
+Disable Nginx request and response buffering and caching. Put fallback request-body temporary files on a bounded RAM-backed `/run` directory; verify that large streaming uploads do not spill onto persistent gateway storage. Use the scoped Nginx template and preserve unrelated routes. Legacy systemd templates are alternatives for a suitably isolated single host, not the two-host deployment recipe.
 
-References: [Node SQLite](https://nodejs.org/download/release/latest-v24.x/docs/api/sqlite.html), [Tesseract API](https://github.com/naptha/tesseract.js/blob/master/docs/api.md), [PDF.js](https://mozilla.github.io/pdf.js/examples/). Library versions are pinned in the repository lockfile.
+Limits: 25 MiB/file, 60 megapixel input, 8 megapixel recognition image, one worker, 12 pending jobs, two pending/network address, 20 admissions over current/previous hourly buckets, 20 GiB total originals and a 2 GiB free-disk reserve. Full storage returns a useful error instead of evicting retained files. Uploads have a 45-second deadline and queued work a two-minute bound. Keep the previous immutable release and gateway configuration for rollback; retained data must survive a code rollback.
+
+References: [PaddleOCR](https://www.paddleocr.ai/latest/en/quick_start.html), [Node SQLite](https://nodejs.org/download/release/latest-v24.x/docs/api/sqlite.html), [PDF.js](https://mozilla.github.io/pdf.js/examples/), [Nginx request buffering](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_request_buffering).

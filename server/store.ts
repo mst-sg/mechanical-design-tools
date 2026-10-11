@@ -6,6 +6,7 @@ import {
   writeFileSync,
   existsSync,
   rmSync,
+  statfsSync,
 } from "node:fs";
 import { join } from "node:path";
 import {
@@ -19,6 +20,7 @@ import type {
   JobPhase,
   JobSnapshot,
   JobState,
+  UploadContext,
 } from "../src/job-types";
 import { errors, type Config } from "./config";
 export type Job = {
@@ -65,7 +67,14 @@ export class JobStore {
       CREATE TABLE IF NOT EXISTS metrics(day TEXT, traffic TEXT, mode TEXT, event TEXT, error TEXT, count INTEGER,
         PRIMARY KEY(day,traffic,mode,event,error));
       CREATE TABLE IF NOT EXISTS rate(address_hash TEXT, bucket INTEGER, count INTEGER,
-        PRIMARY KEY(address_hash,bucket));`);
+        PRIMARY KEY(address_hash,bucket));
+      CREATE TABLE IF NOT EXISTS upload_context (
+        job_id TEXT PRIMARY KEY REFERENCES jobs(id) ON DELETE CASCADE,
+        visitor_id TEXT NOT NULL, network_id TEXT NOT NULL,
+        filename TEXT NOT NULL, contact_email TEXT NOT NULL,
+        referrer_host TEXT NOT NULL, user_agent TEXT NOT NULL,
+        sha256 TEXT NOT NULL DEFAULT '', engine TEXT NOT NULL DEFAULT '',
+        result_rows INTEGER NOT NULL DEFAULT 0);`);
   }
   dir(id: string) {
     return join(this.config.dataDir, "files", id);
@@ -100,6 +109,39 @@ export class JobStore {
       )
       .all(...(state ? [state] : [])) as Job[];
   }
+  context(id: string, ip: string, value: UploadContext, userAgent: string) {
+    const networkId = createHmac("sha256", this.key)
+      .update("network:" + ip)
+      .digest("hex");
+    this.db
+      .prepare(
+        "INSERT INTO upload_context(job_id,visitor_id,network_id,filename,contact_email,referrer_host,user_agent) VALUES(?,?,?,?,?,?,?)",
+      )
+      .run(
+        id,
+        value.visitorId,
+        networkId,
+        value.filename,
+        value.contactEmail,
+        value.referrerHost,
+        userAgent.replace(/[\u0000-\u001f\u007f]/g, "").slice(0, 256),
+      );
+  }
+  sourceDigest(id: string, digest: string) {
+    this.db
+      .prepare("UPDATE upload_context SET sha256=? WHERE job_id=?")
+      .run(digest, id);
+  }
+  releaseReservation(id: string) {
+    this.db.prepare("UPDATE jobs SET bytes=0 WHERE id=?").run(id);
+  }
+  recognized(id: string, engine: unknown, rows: number) {
+    this.db
+      .prepare(
+        "UPDATE upload_context SET engine=?,result_rows=? WHERE job_id=?",
+      )
+      .run(JSON.stringify(engine || {}), rows, id);
+  }
   create(
     id: string,
     token: string,
@@ -126,10 +168,12 @@ export class JobStore {
     const total = this.db
       .prepare("SELECT COALESCE(SUM(bytes),0) bytes FROM jobs")
       .get() as { bytes: number };
+    const disk = statfsSync(this.config.dataDir);
     if (
       pending.n >= this.config.maxPending ||
       pending.own >= this.config.perAddressPending ||
-      total.bytes + bytes > this.config.maxStoredBytes
+      total.bytes + bytes > this.config.maxStoredBytes ||
+      disk.bavail * disk.bsize - bytes < this.config.minFreeBytes
     )
       return "busy";
     this.db
@@ -142,7 +186,7 @@ export class JobStore {
         address,
         now,
         now,
-        now + this.config.retentionMs,
+        this.config.retentionMs > 0 ? now + this.config.retentionMs : 0,
         bytes,
         mime,
         JSON.stringify(options),

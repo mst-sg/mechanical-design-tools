@@ -4,7 +4,7 @@ process.umask(0o077);
 const store = new JobStore(configuration());
 let removed = 0;
 for (const job of store.all())
-  if (job.expires <= Date.now()) {
+  if (job.expires > 0 && job.expires <= Date.now()) {
     store.purge(job.id);
     removed++;
   }

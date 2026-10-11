@@ -80,7 +80,7 @@ export function App({ path }: { path: string }) {
             <br />
             <small>
               {drawing
-                ? "No sign-in. Temporary private files."
+                ? "No sign-in. Private retained files."
                 : active
                   ? "No sign-in. No file upload."
                   : "Processing details on each tool."}
@@ -126,10 +126,10 @@ export function App({ path }: { path: string }) {
           <strong>MST Open Tools</strong>
           <p>
             {drawing
-              ? "Drawing to BOM uploads your chosen file to MST for recognition. Original files and results expire within 24 hours; use Delete server files to remove them sooner. Files are not used for model training."
+              ? "Drawing to BOM uploads to MST GPU servers using PaddleOCR. Original files, results and associated usage records are private. Files are kept until you or an MST administrator delete them. Files are not used for model training."
               : active
                 ? "Your selected files stay in browser memory. Refreshing clears them. Tool assets load from this website; no document content is sent to a server."
-                : "Drawing to BOM uses temporary private server processing. Other tools process files on your device. Each tool explains its processing and deletion policy."}
+                : "Drawing to BOM uses private GPU processing and file storage. Other tools process files on your device. Each tool explains its processing and deletion policy."}
           </p>
         </div>
         <div>

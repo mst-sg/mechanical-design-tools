@@ -21,6 +21,10 @@ import {
   rememberJob,
   uploadJob,
   waitForJob,
+  savedJobs,
+  forgetJob,
+  downloadJobReceipt,
+  readJobReceipt,
 } from "./jobs";
 import type { JobAccess, JobSnapshot } from "./job-types";
 export function DrawingToBom() {
@@ -39,7 +43,10 @@ export function DrawingToBom() {
   const [managingJob, setManagingJob] = useState(false);
   const [job, setJob] = useState<JobSnapshot | null>(null);
   const [access, setAccess] = useState<JobAccess | null>(null);
-  const [retentionHours, setRetentionHours] = useState(24);
+  const [retentionHours, setRetentionHours] = useState(0);
+  const [contactEmail, setContactEmail] = useState("");
+  const [engine, setEngine] = useState("");
+  const [browserReady, setBrowserReady] = useState(false);
   const originalFile = useRef<File | null>(null);
   const inputMode = useRef<UsageMode>("provided");
   const currentUsage = useRef<UsageRun | null>(null);
@@ -63,6 +70,7 @@ export function DrawingToBom() {
     [drawing],
   );
   useEffect(() => {
+    setBrowserReady(true);
     const abort = new AbortController();
     void fetch("/tools-api/health", { signal: abort.signal, cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
@@ -82,6 +90,7 @@ export function DrawingToBom() {
     setRows([]);
     setText("");
     setNote("");
+    setEngine("");
     setError("");
   }
   async function choose(file: File, mode: UsageMode = "provided") {
@@ -201,6 +210,11 @@ export function DrawingToBom() {
     setRows(result.rows);
     setText(result.text);
     setNote(result.message);
+    setEngine(
+      result.engine
+        ? `${result.engine.name} ${result.engine.version} · ${result.engine.model} · GPU`
+        : "",
+    );
     if (result.rows.length) usage?.complete();
     requestAnimationFrame(() => {
       if (id === generation.current) void jobEvent(next, "shown");
@@ -208,11 +222,24 @@ export function DrawingToBom() {
   }
   async function resume(saved = access) {
     if (!saved) return;
+    controller.current?.abort();
+    if (saved.id !== access?.id) {
+      resetResults();
+      originalFile.current = null;
+      setDrawing(null);
+      setPages(0);
+      setPage(1);
+      setCrop(fullCrop);
+      setJob(null);
+      void pdf.current?.loadingTask.destroy();
+      pdf.current = null;
+    }
     if (!currentUsage.current) restoredResult.current = true;
     const id = ++generation.current,
       control = new AbortController();
     controller.current = control;
     setAccess(saved);
+    rememberJob(saved);
     setBusy(true);
     setError("");
     setProgress({ message: "Checking your server job…", value: 0 });
@@ -235,6 +262,15 @@ export function DrawingToBom() {
   async function recognize() {
     const file = originalFile.current;
     if (!drawing || !file) return;
+    if (
+      contactEmail.trim() &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail.trim())
+    ) {
+      setError(
+        "Enter a valid email address or leave the optional field blank.",
+      );
+      return;
+    }
     resetResults();
     const usage = startUsage(inputMode.current);
     currentUsage.current = usage;
@@ -245,7 +281,7 @@ export function DrawingToBom() {
     setBusy(true);
     setAccess(next);
     setJob(null);
-    rememberJob(next);
+    rememberJob(next, file.name);
     setProgress({ message: "Uploading drawing to MST…", value: 0 });
     try {
       const snapshot = await uploadJob(
@@ -264,6 +300,7 @@ export function DrawingToBom() {
               : "browser",
         },
         control.signal,
+        contactEmail,
       );
       if (id !== generation.current) return;
       setJob(snapshot);
@@ -313,6 +350,7 @@ export function DrawingToBom() {
     setError("");
     try {
       await deleteJob(access);
+      forgetJob(access);
       setAccess(null);
       setJob(null);
       rememberJob(null);
@@ -417,11 +455,82 @@ export function DrawingToBom() {
             <span>Up to 25 MB · Uploaded when you choose Extract BOM</span>
           </label>
           <p className="upload-note" id="drawing-file-policy">
-            MST processes the original file on its server. The file and result
-            expire after {retentionHours} hours and are automatically deleted.
-            You can delete them sooner below. Files are not used for model
-            training.
+            MST uploads and stores the original file and recognized result
+            privately on its GPU server.{" "}
+            {retentionHours > 0
+              ? `Files are automatically deleted after ${retentionHours} hours.`
+              : "Files are kept until you or an MST administrator delete them."}{" "}
+            MST can review the file, result, filename, anonymous visitor and
+            usage record to operate and improve this service. Files are not used
+            for model training.
           </p>
+          <label className="contact-field">
+            Contact email (optional)
+            <input
+              type="email"
+              autoComplete="email"
+              maxLength={254}
+              value={contactEmail}
+              disabled={unavailable}
+              onChange={(event) => setContactEmail(event.target.value)}
+              aria-describedby="upload-contact-note"
+            />
+          </label>
+          <p className="hint" id="upload-contact-note">
+            Leave an email if you want MST to identify your submission. It is
+            self-reported, not a verified account.
+          </p>
+          <details className="saved-jobs">
+            <summary>Previous uploads and private receipts</summary>
+            <label>
+              Saved upload in this browser
+              <select
+                value=""
+                disabled={unavailable}
+                onChange={(event) => {
+                  const selected = savedJobs().find(
+                    (saved) => saved.id === event.target.value,
+                  );
+                  if (selected) void resume(selected);
+                }}
+              >
+                <option value="">Choose a previous upload</option>
+                {(browserReady ? savedJobs() : []).map((saved) => (
+                  <option key={saved.id} value={saved.id}>
+                    {new Date(saved.createdAt).toLocaleDateString()} ·{" "}
+                    {saved.filename} · {saved.id.slice(0, 8)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Restore a private job receipt
+              <input
+                type="file"
+                accept=".json"
+                disabled={unavailable}
+                onChange={async (event) => {
+                  const file = event.currentTarget.files?.[0];
+                  event.currentTarget.value = "";
+                  if (!file) return;
+                  try {
+                    await resume(await readJobReceipt(file));
+                  } catch (error) {
+                    setError(
+                      error instanceof Error
+                        ? error.message
+                        : "Invalid job receipt.",
+                    );
+                  }
+                }}
+              />
+            </label>
+            <p className="hint">
+              A private receipt lets you retrieve or delete your upload after
+              browser storage is cleared. Anyone with the receipt can access
+              that job; keep it private.
+            </p>
+          </details>
           {loading && (
             <div className="loading" role="status">
               Opening drawing…
@@ -567,8 +676,8 @@ export function DrawingToBom() {
                 aria-label="Recognition progress"
               />
               <small>
-                Your job continues on the server. Keep this tab to review or
-                delete its result.
+                Your job continues on the server. Saved uploads in this browser
+                let you return to review or delete it.
               </small>
             </div>
           )}
@@ -579,11 +688,20 @@ export function DrawingToBom() {
                 {job && (
                   <>
                     {" "}
-                    · Files expire {new Date(job.expiresAt).toLocaleString()}
+                    ·{" "}
+                    {job.expiresAt > 0
+                      ? `Files expire ${new Date(job.expiresAt).toLocaleString()}`
+                      : "Files retained privately until deleted"}
                   </>
                 )}
               </p>
               <div className="preview-actions">
+                <button
+                  className="text-button"
+                  onClick={() => downloadJobReceipt(access)}
+                >
+                  Save private job receipt
+                </button>
                 <button
                   className="text-button"
                   disabled={managingJob}
@@ -621,6 +739,7 @@ export function DrawingToBom() {
               {note}
             </p>
           )}
+          {engine && <p className="hint">Recognized with {engine}</p>}
           {!rows.length ? (
             <div className="empty-result">
               <span className="table-symbol" aria-hidden="true">

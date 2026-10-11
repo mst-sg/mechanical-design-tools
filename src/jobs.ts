@@ -6,22 +6,117 @@ import type {
 } from "./job-types";
 import { terminal } from "./job-types";
 const storageKey = "mst_bom_job_v1";
-export function rememberJob(access: JobAccess | null) {
+const historyKey = "mst_bom_saved_jobs_v2";
+type SavedJob = JobAccess & { filename: string; createdAt: number };
+function validAccess(v: unknown): v is JobAccess {
+  const a = v as JobAccess;
+  return !!a && /^[a-f0-9-]{36}$/.test(a.id) && /^[a-f0-9]{64}$/.test(a.token);
+}
+export function savedJobs(): SavedJob[] {
   try {
-    if (access) sessionStorage.setItem(storageKey, JSON.stringify(access));
-    else sessionStorage.removeItem(storageKey);
+    const value = JSON.parse(localStorage.getItem(historyKey) || "[]");
+    return Array.isArray(value)
+      ? value
+          .filter((raw: unknown): raw is SavedJob => {
+            if (!validAccess(raw)) return false;
+            const v = raw as SavedJob;
+            return (
+              typeof v.filename === "string" &&
+              v.filename.length <= 240 &&
+              Number.isFinite(v.createdAt)
+            );
+          })
+          .slice(0, 1000)
+      : [];
   } catch {
-    /* Processing still works when storage is disabled. */
+    return [];
   }
+}
+export function rememberJob(access: JobAccess | null, filename = "") {
+  try {
+    if (access) {
+      localStorage.setItem(storageKey, JSON.stringify(access));
+      const saved = savedJobs(),
+        previous = saved.find((job) => job.id === access.id);
+      if (previous || saved.length < 1000)
+        localStorage.setItem(
+          historyKey,
+          JSON.stringify([
+            {
+              ...access,
+              filename:
+                filename.slice(0, 240) || previous?.filename || "Drawing",
+              createdAt: previous?.createdAt || Date.now(),
+            },
+            ...saved.filter((job) => job.id !== access.id),
+          ]),
+        );
+    } else localStorage.removeItem(storageKey);
+    sessionStorage.removeItem(storageKey);
+  } catch {
+    /* The visitor can save a private receipt if browser storage is disabled. */
+  }
+}
+export function forgetJob(access: JobAccess) {
+  try {
+    localStorage.setItem(
+      historyKey,
+      JSON.stringify(savedJobs().filter((job) => job.id !== access.id)),
+    );
+  } catch {
+    /* Receipt remains usable only until server deletion. */
+  }
+  rememberJob(null);
 }
 export function rememberedJob(): JobAccess | null {
   try {
-    const v = JSON.parse(sessionStorage.getItem(storageKey) || "null");
-    return v && /^[a-f0-9-]{36}$/.test(v.id) && /^[a-f0-9]{64}$/.test(v.token)
-      ? v
-      : null;
+    const v = JSON.parse(
+      localStorage.getItem(storageKey) ||
+        sessionStorage.getItem(storageKey) ||
+        "null",
+    );
+    return validAccess(v) ? v : null;
   } catch {
     return null;
+  }
+}
+export function downloadJobReceipt(access: JobAccess) {
+  const body = JSON.stringify(
+    { version: 1, origin: location.origin, ...access },
+    null,
+    2,
+  );
+  const url = URL.createObjectURL(
+    new Blob([body], { type: "application/json" }),
+  );
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `mst-private-job-${access.id.slice(0, 8)}.json`;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+export async function readJobReceipt(file: File): Promise<JobAccess> {
+  if (file.size > 4096) throw new Error("Choose a private MST job receipt.");
+  const value = JSON.parse(await file.text());
+  if (
+    value.version !== 1 ||
+    value.origin !== location.origin ||
+    !validAccess(value)
+  )
+    throw new Error(
+      "This receipt is invalid or belongs to a different website.",
+    );
+  return { id: value.id, token: value.token };
+}
+function visitorId() {
+  try {
+    const prior = localStorage.getItem("mst_tools_visitor_v1");
+    if (prior && /^[a-f0-9-]{36}$/.test(prior)) return prior;
+    const id = crypto.randomUUID();
+    localStorage.setItem("mst_tools_visitor_v1", id);
+    return id;
+  } catch {
+    return crypto.randomUUID();
   }
 }
 export function newJob(): JobAccess {
@@ -83,6 +178,7 @@ export async function uploadJob(
   file: File,
   options: JobOptions,
   signal: AbortSignal,
+  contactEmail = "",
 ): Promise<JobSnapshot> {
   const mime =
     file.type ||
@@ -100,6 +196,22 @@ export async function uploadJob(
         headers: {
           "Content-Type": mime,
           "X-MST-Job-Options": JSON.stringify(options),
+          "X-MST-Upload-Context": encodeURIComponent(
+            JSON.stringify({
+              visitorId: visitorId(),
+              filename: file.name.slice(0, 240),
+              contactEmail: contactEmail.trim(),
+              referrerHost: (() => {
+                try {
+                  return document.referrer
+                    ? new URL(document.referrer).hostname
+                    : "";
+                } catch {
+                  return "";
+                }
+              })(),
+            }),
+          ),
         },
         body: file,
       },
