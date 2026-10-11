@@ -1411,3 +1411,8 @@ pre {
 .connection-results .table-scroll td { overflow-wrap: anywhere; }
 
 .package-files { padding-inline-start: 1.5rem; overflow-wrap: anywhere; font-size: 0.875rem; }
+
+.upload-note { color: #596760; font-size: .85rem; line-height: 1.55; margin: .65rem 0 1rem; }
+.server-job { margin-top: .8rem; padding: .65rem .8rem; background: #f3f5f2; border: 1px solid #dce2dc; border-radius: 5px; }
+.server-job p { margin: 0 0 .45rem; font-size: .8rem; overflow-wrap: anywhere; }
+.server-job .preview-actions { flex-wrap: wrap; }

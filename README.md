@@ -93,9 +93,11 @@ This version supports tags such as `PT-101`, `P-002A` and `TK-12`: one letter pr
 
 ## Privacy
 
-Selected files and recognized content are handled in browser memory. No upload API, inference service, document logging or file persistence is used. The MST-hosted site sends bounded same-origin page-view and start/complete/export events containing the public tool path, source category, sample/provided mode and random event/run IDs. The server derives a daily salted visit identifier; it never receives tool inputs or file contents through this collector. Internal/QA events are excluded from audience totals; GPC and DNT disable it. The hosted Privacy Notice describes the 35-day event retention. Optional Google Analytics is not loaded on tool pages. Refreshing clears the working files and results. Recognition workers and language models are served from the same website. The hosting server can receive ordinary page/asset request metadata, but not drawing/BOM contents.
+Drawing to BOM uploads the original PNG/JPEG/PDF to the same-origin MST job service when the visitor chooses Extract BOM. A random job capability protects status, result and deletion; it is stored only in this tab's session storage and never put in a URL. Files and results are private and expire within 24 hours, or can be deleted immediately. They are not used for model training. The server stores bounded operational outcomes (received, success, empty, failure, timeout, cancellation, result retrieval/display and export) separately from drawings; anonymous daily aggregates are retained for 180 days. Other tools continue to process selected files in browser memory.
 
-The hosted pages set a restrictive content policy for scripts, workers and connections. Do not add third-party analytics or remote inference while retaining this local-processing claim.
+The existing page-view/start/complete/export collector receives no file contents or names. GPC/DNT and internal/QA exclusions still apply to that analytics pipeline. Server job processing and essential outcome records are necessary to deliver the requested result; they do not create a persistent visitor identifier. QA job counts are separated. Optional Google Analytics is not loaded on tool pages.
+
+The hosted pages set a restrictive content policy for scripts, workers and connections. No files are sent to third-party inference services. Keep each tool’s processing and retention notice accurate.
 
 ## Develop
 
@@ -118,11 +120,11 @@ npm run test:e2e
 
 CI verifies real image/PDF OCR, editable CSV output, revision differences, conservative BOM combining, drawing registers, exact tag reconciliation, cancellation and invalid input, desktop/mobile layout, JavaScript-free discovery and document-upload absence. Browser console failures are checked; known Tesseract diagnostics about tiny symbol fragments in the P&ID fixture are retained separately in evidence, with all expected tag values still asserted. Fixtures are synthetic and are not customer drawings. Passing these examples is not a benchmark of arbitrary drawing accuracy.
 
-To run the same browser verification against an existing release, set `MST_TOOLS_BASE_URL=https://mst-us.ai` before `npm run test:e2e`. These flows process synthetic files in the browser and download local CSVs; they do not submit customer data or create server records.
+To run the same browser verification against an existing release, set `MST_TOOLS_BASE_URL=https://mst-us.ai` before `npm run test:e2e`. These flows use owned synthetic fixtures. Drawing-to-BOM creates temporary QA server jobs; other tools process fixtures locally. Never use customer drawings in automated tests.
 
 ## Architecture and release
 
-React/TypeScript provides the interface. [PDF.js](https://mozilla.github.io/pdf.js/) renders a selected PDF page. [Tesseract.js](https://github.com/naptha/tesseract.js) runs OCR in a local worker. Long table rules are removed from a temporary recognition image; the source preview remains intact. Word positions and recognizable headers map text into reviewable rows. CSV parsing and revision comparison are deterministic.
+React/TypeScript provides the interface. [PDF.js](https://mozilla.github.io/pdf.js/) renders a selected PDF page. [Tesseract.js](https://github.com/naptha/tesseract.js) runs Drawing-to-BOM OCR in an isolated server process with preinstalled language assets; title-block and P&ID reading retain local workers. Long table rules are removed from a temporary recognition image; the source preview remains intact. Word positions and recognizable headers map text into reviewable rows. CSV parsing and revision comparison are deterministic.
 
 `npm run build` produces a static `dist/` directory for mounting at `/tools/`, plus an SHA-256 file manifest in `release.json` and a small sitemap. Dependencies are pinned by `package-lock.json`. Publish only an artifact from a successful main-branch verification run, keep the prior directory for rollback, and verify the public tools after promotion. The application needs no database or server-side file-processing endpoint.
 
@@ -141,3 +143,8 @@ MST's [Mechanical Assembly AI](https://mst-us.ai/product/?utm_source=github&utm_
 ## Keep acquisition measures separate
 
 With a repository administrator’s existing `gh` login, run `python3 scripts/github-traffic.py mst-sg/mechanical-design-tools --output /private/path/traffic-YYYY-MM-DD.json`. The script reads GitHub’s rolling 14-day views, clones and popular paths. Save weekly snapshots privately; deduplicate daily UTC rows for a 28-day count. Clones may include CI. Repository views, website GitHub-source page views and actual tool completion are different measures; this collector does not claim task completions. See [GitHub traffic API documentation](https://docs.github.com/en/rest/metrics/traffic).
+
+
+### Drawing-to-BOM job service
+
+See [server deployment and data contract](docs/server-processing.md). Use Node 24. Run `npm run build`, start `npm run start:jobs`, then `npm run preview`; the local preview proxies `/tools-api/` to loopback port 4174. The browser suite starts its own bounded local service. `npm run test:server` verifies actual PNG/PDF OCR and negative access/resource paths. No external inference keys are required.

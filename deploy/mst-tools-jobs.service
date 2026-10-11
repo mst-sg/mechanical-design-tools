@@ -1,0 +1,44 @@
+[Unit]
+Description=MST temporary drawing recognition jobs
+After=network.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=mst-tools-jobs
+Group=mst-tools-jobs
+WorkingDirectory=/opt/mst-tools-jobs/current
+EnvironmentFile=/etc/mst-tools-jobs.env
+Environment=NODE_ENV=production
+ExecStart=/opt/mst-tools-jobs/runtime/bin/node server-dist/main.mjs
+Restart=on-failure
+RestartSec=2
+TimeoutStopSec=15
+KillMode=control-group
+StateDirectory=mst-tools-jobs
+StateDirectoryMode=0700
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+IPAddressDeny=any
+IPAddressAllow=localhost
+ReadWritePaths=/var/lib/mst-tools-jobs
+MemoryHigh=1200M
+MemoryMax=1800M
+CPUQuota=150%
+TasksMax=64
+
+[Install]
+WantedBy=multi-user.target
