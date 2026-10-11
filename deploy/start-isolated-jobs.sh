@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 # Runs only inside this container's network namespace. It never changes host rules.
-# Docker initially grants NET_ADMIN/SETUID/SETGID; all are dropped before Node.
+# Docker initially grants NET_ADMIN/SETUID/SETGID/SETPCAP; all are dropped before Node.
 iptables -F INPUT
 iptables -F OUTPUT
 iptables -A INPUT -i lo -j ACCEPT
