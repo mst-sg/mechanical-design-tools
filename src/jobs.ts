@@ -269,7 +269,11 @@ export async function waitForJob(
   );
 }
 export const jobEvent = (access: JobAccess, event: "shown" | "exported") =>
-  request(access, `/${event}`, { method: "POST" }).catch(() => {});
+  // These bodyless events must survive a reload after a local file download.
+  // Keep this separate from uploads, which remain cancellable and size-bounded.
+  request(access, `/${event}`, { method: "POST", keepalive: true }).catch(
+    () => {},
+  );
 export async function cancelJob(access: JobAccess) {
   await request(access, "/cancel", { method: "POST" });
 }
