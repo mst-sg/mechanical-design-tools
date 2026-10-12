@@ -43,6 +43,7 @@ export function App({ path }: { path: string }) {
                 Free Tools <span aria-hidden="true">⌄</span>
               </summary>
               <div className="tool-menu">
+                <a href="/tools/drawing-to-bom/">Drawing to BOM</a>
                 <a href="/tools/pid-tag-check/">P&ID Tag Check</a>
                 <a href="/tools/bom-compare/">BOM Compare</a>
                 <a href="/tools/bom-model-check/">BOM–Model Check</a>
