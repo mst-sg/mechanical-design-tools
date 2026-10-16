@@ -1,3 +1,4 @@
+import { useRetainedSubmission, type Attachment } from "./RetainedSubmission";
 import { useRef, useState } from "react";
 import { parseCsv, downloadCsv } from "./csv";
 import { readUtf8 } from "./text-file";
@@ -34,6 +35,9 @@ function parse(text: string) {
   }
 }
 export function BomModelTool() {
+  const retained = useRetainedSubmission();
+  const originals = useRef<Record<string, File>>({});
+  const modelFiles = useRef<Attachment[]>([]);
   const [bom, setBom] = useState<ModelInput>(empty),
     [models, setModels] = useState<ModelInput>(empty);
   const [files, setFiles] = useState<SelectedModel[] | null>(null),
@@ -56,8 +60,11 @@ export function BomModelTool() {
     invalidate();
   }
   function sample() {
+    originals.current = {};
+    modelFiles.current = [];
     change("bom", modelSamples.bom);
     change("models", modelSamples.models);
+    modelFiles.current = [];
     setFiles(null);
     setSampleMode(true);
   }
@@ -67,17 +74,31 @@ export function BomModelTool() {
     setSampleMode(false);
     try {
       change(side, await readUtf8(file));
+      originals.current[side] = file;
     } catch (e) {
       setError(e instanceof Error ? e.message : "The CSV could not be read.");
     } finally {
       setLoading(false);
     }
   }
-  function run() {
+  async function run() {
     const usage = startUsage(sampleMode ? "sample" : "provided");
     invalidate();
     try {
-      setResult(checkModels(bom, models, files));
+      setResult(
+        await retained.run(
+          { bom, models, selectedModels: files },
+          [
+            ...Object.entries(originals.current).map(([role, file]) => ({
+              role,
+              file,
+            })),
+            ...modelFiles.current,
+          ],
+          sampleMode ? "sample" : "provided",
+          () => checkModels(bom, models, files),
+        ),
+      );
       setFilter("All");
       usage.complete();
     } catch (e) {
@@ -218,8 +239,9 @@ export function BomModelTool() {
         </h2>
         <p className="hint">
           Select the model files named in the index. Filenames are matched
-          exactly, including case. Only names and sizes are read; model contents
-          and native CAD revisions are not inspected.
+          exactly, including case. Originals are saved when you run. The check
+          uses names and sizes; model geometry and native CAD revisions are not
+          inspected.
         </p>
         <label className="file-picker compact-picker">
           Select model files
@@ -234,11 +256,18 @@ export function BomModelTool() {
               if (!next.length) return;
               invalidate();
               setSampleMode(false);
-              if (next.length > 10000) {
+              if (next.length > 30) {
+                modelFiles.current = [];
                 setFiles(null);
-                setError("Select at most 10,000 model files.");
+                setError(
+                  "Select at most 30 model files (25 MB each, 100 MB total including CSV inputs).",
+                );
                 return;
               }
+              modelFiles.current = next.map((file) => ({
+                role: "model",
+                file,
+              }));
               setFiles(next.map((f) => ({ name: f.name, size: f.size })));
             }}
           />
@@ -252,6 +281,7 @@ export function BomModelTool() {
           <button
             className="text-button"
             onClick={() => {
+              modelFiles.current = [];
               setFiles(null);
               invalidate();
             }}

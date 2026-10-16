@@ -1,3 +1,4 @@
+import { useRetainedSubmission } from "./RetainedSubmission";
 import { startUsage } from "./usage";
 import { useRef, useState } from "react";
 import { DrawingReader, type ReadSheet } from "./DrawingReader";
@@ -18,6 +19,8 @@ const sample = {
   crop: { left: 0, top: 0, width: 100, height: 100 },
 };
 export function PidTool() {
+  const retained = useRetainedSubmission();
+  const referenceFile = useRef<File | null>(null);
   const sourcePanel = useRef<HTMLDivElement>(null);
   const [highlight, setHighlight] = useState<{
     sourceId: string;
@@ -63,7 +66,7 @@ export function PidTool() {
       setError(e instanceof Error ? e.message : "Check the prefixes.");
     }
   }
-  function run() {
+  async function run() {
     const usage = startUsage(
       sheet?.mode === "sample" && referenceIsSample.current
         ? "sample"
@@ -76,7 +79,34 @@ export function PidTool() {
       return;
     }
     try {
-      setResult(compareTags(tagList(drawing), tagList(reference)));
+      setResult(
+        await retained.run(
+          {
+            drawing,
+            reference,
+            prefixes,
+            reviewed,
+            source: sheet
+              ? {
+                  file: sheet.file,
+                  page: sheet.page,
+                  text: sheet.text,
+                  sourceId: sheet.sourceId,
+                }
+              : null,
+          },
+          [
+            ...(sheet ? [{ role: "drawing", file: sheet.originalFile }] : []),
+            ...(referenceFile.current
+              ? [{ role: "reference-tags", file: referenceFile.current }]
+              : []),
+          ],
+          sheet?.mode === "sample" && referenceIsSample.current
+            ? "sample"
+            : "provided",
+          () => compareTags(tagList(drawing), tagList(reference)),
+        ),
+      );
       usage.complete();
       setFilter("All");
     } catch (e) {
@@ -263,6 +293,7 @@ export function PidTool() {
                 try {
                   referenceIsSample.current = false;
                   setReference(await readUtf8(f, 1_000_000));
+                  referenceFile.current = f;
                 } catch (err) {
                   setError(
                     err instanceof Error
@@ -290,6 +321,7 @@ export function PidTool() {
               className="text-button"
               onClick={() => {
                 referenceIsSample.current = true;
+                referenceFile.current = null;
                 setReference(
                   "Tag,Description\nP-101,Feed pump\nPT-101,Pressure transmitter\nFT-102,Flow transmitter\nTT-103,Temperature transmitter",
                 );

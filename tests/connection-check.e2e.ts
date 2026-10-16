@@ -1,15 +1,15 @@
 import { test, expect } from "@playwright/test";
 import { readFile, mkdir } from "node:fs/promises";
 import { parseCsv } from "../src/csv";
-import { isVisitRequest } from "./visit-request";
+import { isVisitRequest, isPrivateToolRequest, isAllowedToolWrite } from "./visit-request";
 
 test("a connection exercise produces source evidence, export and a corrected result", async ({ page }, info) => {
   const errors: string[] = [], writes: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   page.on("request", (r) => {
     if (r.method() !== "GET" && r.method() !== "HEAD") {
-      expect(isVisitRequest(r)).toBe(true);
-      writes.push(r.postData() || "");
+      expect(isAllowedToolWrite(r)).toBe(true);
+      if (isVisitRequest(r)) writes.push(r.postData() || "");
     }
   });
   const started = Date.now();

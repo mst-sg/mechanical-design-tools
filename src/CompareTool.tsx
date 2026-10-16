@@ -1,3 +1,4 @@
+import { useRetainedSubmission, type Attachment } from "./RetainedSubmission";
 import { startUsage, type UsageMode } from "./usage";
 import { useMemo, useRef, useState } from "react";
 import { fields, labels, type BomField } from "./types";
@@ -29,6 +30,8 @@ function parsed(text: string): { data: string[][]; error: string } {
   }
 }
 export function BomCompare() {
+  const retained = useRetainedSubmission();
+  const originals = useRef<Partial<Record<"before" | "after", File>>>({});
   const modes = useRef<Record<"before" | "after", UsageMode>>({
     before: "provided",
     after: "provided",
@@ -70,24 +73,37 @@ export function BomCompare() {
         );
       }
       change(side, text, file.name);
+      originals.current[side] = file;
     } catch (e) {
       setError(e instanceof Error ? e.message : "The CSV could not be opened.");
     } finally {
       setLoading(false);
     }
   }
-  function run() {
+  async function run() {
     const usage = startUsage(
       modes.current.before === "sample" && modes.current.after === "sample"
         ? "sample"
         : "provided",
     );
     try {
-      if (b.error || a.error) throw new Error(b.error || a.error);
       setResult(
-        compareBoms(
-          mappedRows(b.data, before.map),
-          mappedRows(a.data, after.map),
+        await retained.run(
+          { before, after },
+          Object.entries(originals.current).map(([role, file]) => ({
+            role,
+            file,
+          })),
+          modes.current.before === "sample" && modes.current.after === "sample"
+            ? "sample"
+            : "provided",
+          () => {
+            if (b.error || a.error) throw new Error(b.error || a.error);
+            return compareBoms(
+              mappedRows(b.data, before.map),
+              mappedRows(a.data, after.map),
+            );
+          },
         ),
       );
       usage.complete();
@@ -99,6 +115,7 @@ export function BomCompare() {
     }
   }
   function sample() {
+    originals.current = {};
     change("before", samples.before, "Sample · revision A", "sample");
     change("after", samples.after, "Sample · revision B", "sample");
   }

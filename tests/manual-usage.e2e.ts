@@ -35,7 +35,7 @@ async function observe(page: Page) {
         request.method() === "GET"
           ? undefined
           : request.method() === "POST" &&
-              /\/jobs\/[a-f0-9-]+$/.test(url.pathname)
+              (/\/jobs\/[a-f0-9-]+$/.test(url.pathname) || /\/submissions\/[a-f0-9-]+\/files\/0$/.test(url.pathname))
             ? // WebKit's intercepted binary postData is not byte preserving.
               // Forward the exact synthetic file selected by noLabels below.
               drawing

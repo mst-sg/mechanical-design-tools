@@ -1,4 +1,4 @@
-import { isVisitRequest } from "./visit-request";
+import { isVisitRequest, isPrivateToolRequest, isAllowedToolWrite } from "./visit-request";
 import { test, expect, type Page } from "@playwright/test";
 import { readFile, mkdir } from "node:fs/promises";
 import { parseCsv } from "../src/csv";
@@ -20,7 +20,7 @@ function watch(page: Page) {
       errors.push("Unexpected egress: " + r.url());
     if (
       r.method() !== "GET" &&
-      !isVisitRequest(r) &&
+      !isAllowedToolWrite(r) &&
       !new URL(r.url()).pathname.startsWith("/tools-api/")
     )
       errors.push("Unexpected write: " + r.method());

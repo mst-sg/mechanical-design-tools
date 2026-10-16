@@ -4,10 +4,48 @@
   "compatibility_date": "2026-10-01",
   "workers_dev": false,
   "preview_urls": false,
-  "observability": { "enabled": false },
+  "observability": {
+    "enabled": false
+  },
   "routes": [
     {
       "pattern": "https://mst-us.ai/tools/drawing-to-bom*",
+      "zone_name": "mst-us.ai"
+    },
+    {
+      "pattern": "https://mst-us.ai/tools/bom-compare*",
+      "zone_name": "mst-us.ai"
+    },
+    {
+      "pattern": "https://mst-us.ai/tools/bom-check*",
+      "zone_name": "mst-us.ai"
+    },
+    {
+      "pattern": "https://mst-us.ai/tools/drawing-register-compare*",
+      "zone_name": "mst-us.ai"
+    },
+    {
+      "pattern": "https://mst-us.ai/tools/connection-table-check*",
+      "zone_name": "mst-us.ai"
+    },
+    {
+      "pattern": "https://mst-us.ai/tools/line-list-check*",
+      "zone_name": "mst-us.ai"
+    },
+    {
+      "pattern": "https://mst-us.ai/tools/bom-model-check*",
+      "zone_name": "mst-us.ai"
+    },
+    {
+      "pattern": "https://mst-us.ai/tools/delivery-package-check*",
+      "zone_name": "mst-us.ai"
+    },
+    {
+      "pattern": "https://mst-us.ai/tools/pid-tag-check*",
+      "zone_name": "mst-us.ai"
+    },
+    {
+      "pattern": "https://mst-us.ai/tools/title-block-reader*",
       "zone_name": "mst-us.ai"
     }
   ]

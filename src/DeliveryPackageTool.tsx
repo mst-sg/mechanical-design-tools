@@ -1,3 +1,4 @@
+import { useRetainedSubmission, type Attachment } from "./RetainedSubmission";
 import { useRef, useState } from "react";
 import { downloadCsv, parseCsv } from "./csv";
 import { readUtf8 } from "./text-file";
@@ -13,6 +14,9 @@ import {
 } from "./delivery-package";
 
 export function DeliveryPackageTool() {
+  const retained = useRetainedSubmission();
+  const manifestFile = useRef<File | null>(null),
+    packageFiles = useRef<Attachment[]>([]);
   const [text, setText] = useState(""),
     [column, setColumn] = useState(-1),
     [files, setFiles] = useState<PackageFile[]>([]);
@@ -38,6 +42,8 @@ export function DeliveryPackageTool() {
     setSample(false);
   }
   function loadSample(corrected = false) {
+    manifestFile.current = null;
+    packageFiles.current = [];
     setText(packageSample.manifest);
     setColumn(0);
     setFiles(corrected ? packageSample.corrected : packageSample.files);
@@ -50,6 +56,7 @@ export function DeliveryPackageTool() {
     change("");
     try {
       change(await readUtf8(file));
+      manifestFile.current = file;
     } catch (e) {
       setError(
         e instanceof Error ? e.message : "The manifest could not be read.",
@@ -63,10 +70,20 @@ export function DeliveryPackageTool() {
     setSample(false);
     setFiles([]);
     setMode(folder ? "relative-path" : "filename");
-    if (selection.length > 10000) {
-      setError("Select at most 10,000 files.");
+    packageFiles.current = [];
+    if (selection.length > 31) {
+      setError(
+        "Select at most 31 package files plus the manifest, 25 MB each and 100 MB total.",
+      );
       return;
     }
+    packageFiles.current = Array.from(selection, (file) => ({
+      role: "deliverable",
+      file,
+      relativePath: folder
+        ? file.webkitRelativePath.split("/").slice(1).join("/")
+        : "",
+    }));
     setFiles(
       Array.from(selection, (f) => ({
         name: f.name,
@@ -77,11 +94,24 @@ export function DeliveryPackageTool() {
       })),
     );
   }
-  function run() {
+  async function run() {
     invalidate();
     const usage = startUsage(sample ? "sample" : "provided");
     try {
-      setResult({ report: checkPackage(text, column, files, mode), usage });
+      setResult({
+        report: await retained.run(
+          { text, column, files, mode },
+          [
+            ...(manifestFile.current
+              ? [{ role: "manifest", file: manifestFile.current }]
+              : []),
+            ...packageFiles.current,
+          ],
+          sample ? "sample" : "provided",
+          () => checkPackage(text, column, files, mode),
+        ),
+        usage,
+      });
       usage.complete();
     } catch (e) {
       setError(e instanceof Error ? e.message : "The check could not finish.");
@@ -205,7 +235,9 @@ export function DeliveryPackageTool() {
                 e.currentTarget.value = "";
               }}
             />
-            <span>Filenames and sizes only · up to 10,000 files</span>
+            <span>
+              Original files saved when you run · up to 31 package files
+            </span>
           </label>
           <label className="file-picker compact-picker">
             Choose folder
@@ -226,7 +258,7 @@ export function DeliveryPackageTool() {
           <p className="hint">
             {sample
               ? "Synthetic example file list; no files have been selected from your device."
-              : `${files.length} selected files. Contents are not read or uploaded.`}{" "}
+              : `${files.length} selected files. Originals are uploaded when you run; contents are not analyzed.`}{" "}
             {mode === "relative-path"
               ? "Matching relative paths."
               : "Matching filenames exactly, including case."}
@@ -261,6 +293,7 @@ export function DeliveryPackageTool() {
           disabled={busy}
           onClick={() => {
             change("");
+            packageFiles.current = [];
             setFiles([]);
             setMode("filename");
           }}

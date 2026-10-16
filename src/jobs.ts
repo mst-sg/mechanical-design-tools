@@ -285,3 +285,17 @@ export async function deleteJob(access: JobAccess) {
       throw error;
   }
 }
+
+export async function saveReviewedResult(
+  access: JobAccess,
+  rows: import("./types").BomRow[],
+  requestId: string,
+) {
+  return (
+    await request(access, "/reviewed", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ v: 1, rows, requestId }),
+    })
+  ).json() as Promise<{ saved: boolean; revision: number }>;
+}

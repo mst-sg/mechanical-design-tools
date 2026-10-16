@@ -1,3 +1,4 @@
+import { useRetainedSubmission, type Attachment } from "./RetainedSubmission";
 import { useRef, useState } from "react";
 import { downloadCsv, parseCsv } from "./csv";
 import { readUtf8 } from "./text-file";
@@ -19,6 +20,8 @@ import {
 const sides: LineSide[] = ["register", "drawing"];
 const empty = () => ({ register: lineInput(""), drawing: lineInput("") });
 export function LineListTool() {
+  const retained = useRetainedSubmission();
+  const originals = useRef<Partial<Record<LineSide, File>>>({});
   const [inputs, setInputs] = useState<Record<LineSide, LineInput>>(empty);
   const [result, setResult] = useState<{
     report: LineReport;
@@ -42,6 +45,7 @@ export function LineListTool() {
     setSample(false);
   }
   function loadSample(corrected = false) {
+    originals.current = {};
     setInputs({
       register: lineInput(lineSamples.register),
       drawing: lineInput(
@@ -56,17 +60,29 @@ export function LineListTool() {
     change(side, "");
     try {
       change(side, await readUtf8(file));
+      originals.current[side] = file;
     } catch (e) {
       setError(e instanceof Error ? e.message : "The CSV could not be read.");
     } finally {
       setBusy(false);
     }
   }
-  function run() {
+  async function run() {
     invalidate();
     const usage = startUsage(sample ? "sample" : "provided");
     try {
-      setResult({ report: checkLineLists(inputs), usage });
+      setResult({
+        report: await retained.run(
+          inputs,
+          Object.entries(originals.current).map(([role, file]) => ({
+            role,
+            file,
+          })),
+          sample ? "sample" : "provided",
+          () => checkLineLists(inputs),
+        ),
+        usage,
+      });
       usage.complete();
     } catch (e) {
       setError(
@@ -215,6 +231,7 @@ export function LineListTool() {
           className="text-button"
           disabled={busy}
           onClick={() => {
+            originals.current = {};
             setInputs(empty());
             invalidate();
             setSample(false);

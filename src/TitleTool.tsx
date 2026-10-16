@@ -1,3 +1,4 @@
+import { useRetainedSubmission } from "./RetainedSubmission";
 import { useState } from "react";
 import { DrawingReader, type ReadSheet } from "./DrawingReader";
 import {
@@ -15,6 +16,7 @@ const sample = {
   crop: { left: 3, top: 38, width: 94, height: 59 },
 };
 export function TitleTool() {
+  const retained = useRetainedSubmission();
   const [sheet, setSheet] = useState<ReadSheet | null>(null),
     [values, setValues] = useState(blankTitle),
     [entries, setEntries] = useState<Entry[]>([]);
@@ -39,18 +41,76 @@ export function TitleTool() {
         : "No recognizable title-block labels found. Try a closer crop, or enter values from the drawing.",
     );
   }
-  function add() {
+  async function add() {
     if (!sheet || !reviewed || !values.drawingNumber.trim()) return;
     sheet.usage?.complete();
     const entry = { ...sheet, values: { ...values } };
+    try {
+      await retained.run(
+        {
+          stage: "reviewed-title-block",
+          sourceId: sheet.sourceId,
+          file: sheet.file,
+          page: sheet.page,
+          text: sheet.text,
+          reviewed,
+        },
+        [{ role: "drawing", file: sheet.originalFile }],
+        sheet.mode,
+        () => ({ values }),
+      );
+    } catch (e) {
+      setNote(
+        e instanceof Error ? e.message : "The reviewed sheet was not saved.",
+      );
+      return;
+    }
     setEntries((prev) =>
       prev.some((e) => e.sourceId === sheet.sourceId)
         ? prev.map((e) => (e.sourceId === sheet.sourceId ? entry : e))
         : [...prev, entry],
     );
     setNote(
-      "Reviewed sheet saved in this browser session. Choose another file or PDF page to continue.",
+      "Reviewed sheet saved privately with MST. Choose another file or PDF page to continue.",
     );
+  }
+  async function exportRegister() {
+    try {
+      const records = entries.map(({ originalFile, usage, ...entry }) => entry);
+      const files = [...new Set(entries.map((e) => e.originalFile))].map(
+        (file) => ({ role: "drawing", file }),
+      );
+      await retained.run(
+        { stage: "register-export", entries: records },
+        files,
+        entries.every((e) => e.mode === "sample") ? "sample" : "provided",
+        () => ({
+          rows: records.map((e) => ({
+            file: e.file,
+            page: e.page,
+            ...e.values,
+          })),
+        }),
+      );
+      downloadCsv(
+        toCsv([
+          [
+            "Source file",
+            "PDF page",
+            ...titleFields.map((f) => titleLabels[f]),
+          ],
+          ...entries.map((e) => [
+            e.file,
+            e.page,
+            ...titleFields.map((f) => e.values[f]),
+          ]),
+        ]),
+        "drawing-register.csv",
+        () => entries.forEach((entry) => entry.usage?.export()),
+      );
+    } catch (e) {
+      setNote(e instanceof Error ? e.message : "The register was not saved.");
+    }
   }
   return (
     <>
@@ -125,24 +185,7 @@ export function TitleTool() {
           <button
             className="button primary"
             disabled={!entries.length}
-            onClick={() =>
-              downloadCsv(
-                toCsv([
-                  [
-                    "Source file",
-                    "PDF page",
-                    ...titleFields.map((f) => titleLabels[f]),
-                  ],
-                  ...entries.map((e) => [
-                    e.file,
-                    e.page,
-                    ...titleFields.map((f) => e.values[f]),
-                  ]),
-                ]),
-                "drawing-register.csv",
-                () => entries.forEach((entry) => entry.usage?.export()),
-              )
-            }
+            onClick={() => void exportRegister()}
           >
             Export register ↓
           </button>

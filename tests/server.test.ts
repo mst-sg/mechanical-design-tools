@@ -12,6 +12,7 @@ import { tmpdir } from "node:os";
 import { resolve, join } from "node:path";
 import { randomBytes, randomUUID, createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
+import { request } from "node:http";
 import { createJobService } from "../server/app";
 import { configuration, type Config } from "../server/config";
 import { paddleDouble } from "./fixtures/paddle-double";
@@ -228,10 +229,11 @@ test("rate limit and storage cap do not accept another file", async (t) => {
   await f.req(a, "POST", "", tiny);
   await f.done(a);
   assert.equal((await f.req(f.access(), "POST", "", tiny)).status, 429);
-  const g = await fixture(t, { maxStoredBytes: tiny.length }),
+  const g = await fixture(t),
     b = g.access();
   await g.req(b, "POST", "", tiny);
   await g.done(b);
+  g.config.maxStoredBytes = g.app.store.storedBytes();
   assert.equal((await g.req(g.access(), "POST", "", tiny)).status, 503);
 });
 test(
@@ -479,7 +481,7 @@ test("isolated US child origin denies the same-site root and SG origin even with
 test("private metadata initialization failure releases pending capacity", async (t) => {
   const f = await fixture(t, {
     perAddressPending: 1,
-    maxStoredBytes: tiny.length,
+    maxStoredBytes: 3 * 1024 * 1024,
   });
   const original = f.app.store.context;
   f.app.store.context = () => {
@@ -512,4 +514,147 @@ test("cancelling a slow inference does not fail the next accepted job while Padd
   assert.equal((await f.req(second, "POST", "", body)).status, 202);
   assert.equal((await f.done(first)).state, "cancelled");
   assert.equal((await f.done(second)).state, "succeeded");
+});
+
+test("manual BOM versions persist independently, retry safely, restore final rows and enforce private capacity", async (t) => {
+  const f = await fixture(t),
+    a = f.access();
+  await f.req(a, "POST", "", tiny);
+  await f.done(a);
+  const raw = readFileSync(join(f.app.store.dir(a.id), "result.json"));
+  const rows = [
+    {
+      id: "manual-1",
+      item: "1",
+      partNumber: "REVIEWED",
+      description: "Owner fixture",
+      quantity: "4",
+      material: "Steel",
+    },
+  ];
+  const first = { v: 1, rows, requestId: randomUUID() };
+  const save = (body: unknown, token = a.token) =>
+    f.req(
+      { ...a, token },
+      "POST",
+      "/reviewed",
+      Buffer.from(JSON.stringify(body)),
+      { "Content-Type": "application/json" },
+    );
+  assert.equal((await save(first, f.access().token)).status, 404);
+  assert.equal((await save(first)).status, 200);
+  const used = f.app.store.storedBytes();
+  assert.equal((await save(first)).status, 200);
+  assert.equal(f.app.store.storedBytes(), used);
+  assert.equal((await save({ ...first, rows: [] })).status, 409);
+  assert.equal(
+    (await save({ v: 1, rows: [], requestId: randomUUID() })).status,
+    200,
+  );
+  assert.equal((await save({ ...first, requestId: randomUUID() })).status, 200);
+  const result = await (await f.req(a, "GET", "/result")).json();
+  assert.deepEqual(result.rows[0].partNumber, "FIXTURE");
+  assert.deepEqual(result.reviewed.rows, rows);
+  assert.equal(result.reviewed.revision, 3);
+  assert.equal(result.reviewed.source, "browser_reported");
+  assert.deepEqual(
+    readFileSync(join(f.app.store.dir(a.id), "result.json")),
+    raw,
+  );
+  f.config.maxStoredBytes = f.app.store.storedBytes();
+  assert.equal(
+    (await save({ v: 1, rows: [], requestId: randomUUID() })).status,
+    503,
+  );
+  assert.equal((await save(first)).status, 200);
+  await f.req(a, "DELETE");
+  assert.equal(
+    f.app.store.db.prepare("SELECT COUNT(*) n FROM reviewed_results").get()!.n,
+    0,
+  );
+});
+
+test("a delayed review body cannot use an old capability to modify a recreated job", async (t) => {
+  const f = await fixture(t),
+    old = f.access();
+  assert.equal((await f.req(old, "POST", "", tiny)).status, 202);
+  assert.equal((await f.done(old)).state, "succeeded");
+  const body = Buffer.from(
+    JSON.stringify({
+      v: 1,
+      requestId: randomUUID(),
+      rows: [
+        {
+          id: "1",
+          item: "1",
+          partNumber: "OLD-CAPABILITY-WRITE",
+          description: "Synthetic race fixture",
+          quantity: "1",
+          material: "",
+        },
+      ],
+    }),
+  );
+  const authorized = f.app.store.authorized.bind(f.app.store);
+  let entered = false;
+  f.app.store.authorized = (row, token) => {
+    const valid = authorized(row, token);
+    if (valid && token === old.token) entered = true;
+    return valid;
+  };
+  let resolve!: (value: { status: number; body: string }) => void;
+  const response = new Promise<{ status: number; body: string }>((r) => {
+    resolve = r;
+  });
+  const pending = request(
+    `${f.base}/tools-api/v1/jobs/${old.id}/reviewed`,
+    {
+      method: "POST",
+      headers: {
+        Origin: f.config.origin,
+        Authorization: `Bearer ${old.token}`,
+        "Content-Type": "application/json",
+        "Content-Length": body.length,
+      },
+    },
+    (res) => {
+      const parts: Buffer[] = [];
+      res.on("data", (chunk) => parts.push(chunk));
+      res.on("end", () =>
+        resolve({
+          status: res.statusCode || 0,
+          body: Buffer.concat(parts).toString(),
+        }),
+      );
+      res.on("error", (error) => resolve({ status: 0, body: error.message }));
+    },
+  );
+  pending.on("error", (error) => resolve({ status: 0, body: error.message }));
+  pending.setTimeout(5000, () =>
+    pending.destroy(new Error("Synthetic review timed out.")),
+  );
+  t.after(() => pending.destroy());
+  pending.write(body.subarray(0, 1));
+  for (let n = 0; n < 100 && !entered; n++)
+    await new Promise((r) => setTimeout(r, 10));
+  assert.equal(
+    entered,
+    true,
+    "The old capability must be accepted before replacing the job.",
+  );
+  assert.equal((await f.req(old, "DELETE")).status, 204);
+  const replacement = { id: old.id, token: f.access().token };
+  assert.equal((await f.req(replacement, "POST", "", tiny)).status, 202);
+  assert.equal((await f.done(replacement)).state, "succeeded");
+  pending.end(body.subarray(1));
+  assert.equal((await response).status, 404);
+  assert.equal((await f.req(old)).status, 404);
+  const result = await (await f.req(replacement, "GET", "/result")).json();
+  assert.equal(result.reviewed, null);
+  assert.equal(
+    f.app.store.db
+      .prepare("SELECT COUNT(*) n FROM reviewed_results WHERE job_id=?")
+      .get(old.id)!.n,
+    0,
+  );
 });

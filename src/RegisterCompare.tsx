@@ -1,3 +1,4 @@
+import { useRetainedSubmission, type Attachment } from "./RetainedSubmission";
 import { startUsage, type UsageMode } from "./usage";
 import { useRef, useState } from "react";
 import { downloadCsv } from "./csv";
@@ -9,6 +10,8 @@ import {
 } from "./register-compare";
 
 export function RegisterCompare() {
+  const retained = useRetainedSubmission();
+  const originals = useRef<Record<string, File>>({});
   const mode = useRef<UsageMode>("provided");
   const [inputs, setInputs] = useState(["", ""]);
   const [result, setResult] = useState<RegisterDiff[] | null>(null);
@@ -26,6 +29,7 @@ export function RegisterCompare() {
     setError("");
     try {
       change(i, await readUtf8(file));
+      originals.current[String(i)] = file;
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -47,6 +51,7 @@ export function RegisterCompare() {
           return r.text();
         }),
       );
+      originals.current = {};
       setInputs(texts);
       mode.current = "sample";
     } catch (e) {
@@ -107,10 +112,20 @@ export function RegisterCompare() {
       <button
         className="button primary"
         disabled={loading || inputs.some((v) => !v.trim())}
-        onClick={() => {
+        onClick={async () => {
           const usage = startUsage(mode.current);
           try {
-            setResult(compareRegisters(inputs[0], inputs[1]));
+            setResult(
+              await retained.run(
+                { before: inputs[0], after: inputs[1] },
+                Object.entries(originals.current).map(([role, file]) => ({
+                  role: role === "0" ? "before" : "after",
+                  file,
+                })),
+                mode.current,
+                () => compareRegisters(inputs[0], inputs[1]),
+              ),
+            );
             usage.complete();
             setError("");
           } catch (e) {

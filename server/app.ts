@@ -24,6 +24,11 @@ import { exportBom } from "../src/csv";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { isIP } from "node:net";
 import { parseContext } from "./input";
+import { SubmissionService, SubmissionError } from "./submissions";
+import { visitorContext } from "./visitor-context";
+import { latestReviewed, saveReviewed } from "./reviewed-results";
+import { operatorRequest } from "./operator";
+import { recordToolVisit } from "./tool-visits";
 
 class HttpError extends Error {
   constructor(
@@ -35,6 +40,7 @@ class HttpError extends Error {
 }
 export function createJobService(config: Config) {
   const store = new JobStore(config);
+  const submissions = new SubmissionService(store);
   const active = new Map<
     string,
     { child: ChildProcess; timer: NodeJS.Timeout }
@@ -84,6 +90,7 @@ export function createJobService(config: Config) {
         fail(job.id, "queue_timeout");
     }
     store.prune(now);
+    submissions.sweep(now);
   }
   // Never silently replay a job whose process disappeared. The original and
   // failure remain available until expiry, so the visitor gets a real outcome.
@@ -178,9 +185,11 @@ export function createJobService(config: Config) {
             const encoded = JSON.stringify(result);
             if (Buffer.byteLength(encoded) > 2 * 1024 * 1024)
               throw new Error("large result");
+            if (!store.hasPhysicalSpace()) throw new Error("storage full");
             writeFileSync(join(store.dir(job.id), "result.json"), encoded, {
               mode: 0o600,
               flag: "wx",
+              flush: true,
             });
             store.recognized(job.id, result.engine, result.rows.length);
             store.finish(job.id, result.rows.length ? "succeeded" : "empty");
@@ -243,7 +252,9 @@ export function createJobService(config: Config) {
         )
           throw new HttpError(403, "forbidden");
       } else if (config.trustProxy) throw new HttpError(503, "unavailable");
-      const path = new URL(req.url || "/", "http://local").pathname;
+      const url = new URL(req.url || "/", "http://local"),
+        path = url.pathname;
+      if (await operatorRequest(store, submissions, req, res, url)) return;
       if (req.method === "GET" && path === "/tools-api/health") {
         return json(res, 200, {
           status: "ok",
@@ -261,8 +272,11 @@ export function createJobService(config: Config) {
         req.headers["sec-fetch-site"] === "cross-site"
       )
         throw new HttpError(403, "forbidden");
+      if (path === "/tools-api/v1/visits")
+        return await recordToolVisit(store, req, res);
+      if (await submissions.handle(req, res, path, closing)) return;
       const match =
-        /^\/tools-api\/v1\/jobs\/([a-f0-9-]+)(?:\/(result(?:\.csv)?|shown|exported|cancel))?$/.exec(
+        /^\/tools-api\/v1\/jobs\/([a-f0-9-]+)(?:\/(result(?:\.csv)?|reviewed|shown|exported|cancel))?$/.exec(
           path,
         );
       if (!match || !UUID.test(match[1])) throw new HttpError(404, "not_found");
@@ -322,7 +336,9 @@ export function createJobService(config: Config) {
             callback(
               received > config.maxBytes || received > size
                 ? new Error("too_large")
-                : null,
+                : !store.hasPhysicalSpace()
+                  ? new Error("storage full")
+                  : null,
               chunk,
             );
           },
@@ -339,12 +355,16 @@ export function createJobService(config: Config) {
             context,
             String(req.headers["user-agent"] || ""),
           );
+          store.db
+            .prepare("INSERT INTO visitor_context VALUES(?,?)")
+            .run(id, JSON.stringify(visitorContext(req, config)));
           await pipeline(
             req,
             limiter,
             createWriteStream(join(store.dir(id), "upload.part"), {
               mode: 0o600,
               flags: "wx",
+              flush: true,
             }),
           );
           const current = store.get(id);
@@ -408,6 +428,8 @@ export function createJobService(config: Config) {
       }
       if (!["succeeded", "empty"].includes(job!.state))
         throw new HttpError(409, "not_ready");
+      if (req.method === "POST" && action === "reviewed")
+        return json(res, 200, await saveReviewed(store, job!, token, req));
       if (
         req.method === "POST" &&
         ["shown", "exported"].includes(action || "")
@@ -425,7 +447,11 @@ export function createJobService(config: Config) {
           readFileSync(join(store.dir(id), "result.json"), "utf8"),
         );
         store.event(id, "result_fetched");
-        if (action === "result") return json(res, 200, result);
+        if (action === "result")
+          return json(res, 200, {
+            ...result,
+            reviewed: latestReviewed(store, id),
+          });
         store.event(id, "exported");
         res.writeHead(200, {
           "Content-Type": "text/csv; charset=utf-8",
@@ -436,11 +462,15 @@ export function createJobService(config: Config) {
       }
       throw new HttpError(404, "not_found");
     } catch (error) {
-      const known = error instanceof HttpError;
+      const known =
+        error instanceof HttpError || error instanceof SubmissionError;
       if (!res.headersSent && !res.destroyed)
         json(res, known ? error.status : 503, {
           code: known ? error.code : "unavailable",
-          message: errors[known ? error.code : "unavailable"],
+          message:
+            error instanceof SubmissionError
+              ? error.message
+              : errors[known ? error.code : "unavailable"],
         });
       req.resume();
     }
@@ -460,6 +490,7 @@ export function createJobService(config: Config) {
       if (closing) return;
       closing = true;
       clearInterval(cleanup);
+      submissions.close();
       for (const [id] of uploads) {
         fail(id, "interrupted");
         stop(id);

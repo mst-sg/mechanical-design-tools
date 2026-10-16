@@ -55,3 +55,49 @@ export function isVisitRequest(request: Request): boolean {
     return false;
   }
 }
+
+// Retention is a separate authenticated data path; never count its bodies as
+// anonymous analytics. Callers still check the expected request origin.
+export function isPrivateToolRequest(request: Request): boolean {
+  if (request.method() !== "POST") return false;
+  const path = new URL(request.url()).pathname;
+  if (path === "/tools-api/v1/visits") {
+    try {
+      const b = request.postDataJSON();
+      return (
+        b.v === 1 &&
+        b.traffic === "test" &&
+        Object.keys(b).sort().join(",") === "eventId,source,tool,traffic,v" &&
+        /^[a-f0-9-]{36}$/.test(b.eventId)
+      );
+    } catch {
+      return false;
+    }
+  }
+  if (!/^Bearer [a-f0-9]{64}$/.test(request.headers().authorization || ""))
+    return false;
+  if (
+    !/^\/tools-api\/v1\/submissions\/[a-f0-9-]{36}(?:\/(?:files\/\d+|finish))?$/.test(
+      path,
+    )
+  )
+    return false;
+  if (path.endsWith("/finish")) return !request.postData();
+  if (/\/files\/\d+$/.test(path))
+    return request.headers()["content-type"] === "application/octet-stream";
+  try {
+    const b = request.postDataJSON();
+    return (
+      b.v === 1 &&
+      b.traffic === "test" &&
+      Object.keys(b).sort().join(",") ===
+        "contactEmail,files,inputs,mode,result,source,tool,traffic,v,visitorId" &&
+      Array.isArray(b.files)
+    );
+  } catch {
+    return false;
+  }
+}
+export function isAllowedToolWrite(request: Request): boolean {
+  return isVisitRequest(request) || isPrivateToolRequest(request);
+}

@@ -1,3 +1,4 @@
+import { useRetainedSubmission } from "./RetainedSubmission";
 import { startUsage, type UsageMode, type UsageRun } from "./usage";
 import { BomLabGuide } from "./BomLabGuide";
 import { useEffect, useRef, useState, type PointerEvent } from "react";
@@ -16,6 +17,7 @@ import {
   cancelJob,
   deleteJob,
   jobEvent,
+  saveReviewedResult,
   newJob,
   rememberedJob,
   rememberJob,
@@ -29,6 +31,13 @@ import {
 import type { JobAccess, JobSnapshot } from "./job-types";
 import type { BomWorkbookSource } from "./bom-workbook";
 export function DrawingToBom() {
+  const retained = useRetainedSubmission();
+  const [reviewStatus, setReviewStatus] = useState("");
+  const reviewAttempt = useRef<{
+    job: string;
+    body: string;
+    requestId: string;
+  } | null>(null);
   const [drawing, setDrawing] = useState<Drawing | null>(null),
     [rows, setRows] = useState<BomRow[]>([]),
     [crop, setCrop] = useState<Crop>(fullCrop),
@@ -92,6 +101,8 @@ export function DrawingToBom() {
     resultSource.current = {};
     currentUsage.current = null;
     restoredResult.current = false;
+    setReviewStatus("");
+    reviewAttempt.current = null;
     setRows([]);
     setText("");
     setNote("");
@@ -213,7 +224,12 @@ export function DrawingToBom() {
       });
     });
     if (id !== generation.current) return;
-    setRows(result.rows);
+    setRows(result.reviewed?.rows ?? result.rows);
+    setReviewStatus(
+      result.reviewed
+        ? `Saved manual version ${result.reviewed.revision} restored.`
+        : "Original recognition loaded. Save or export to retain manual changes.",
+    );
     setText(result.text);
     setNote(result.message);
     setEngine(
@@ -438,8 +454,54 @@ export function DrawingToBom() {
     usage.export();
     if (access) void jobEvent(access, "exported");
   }
-  function exportRows() {
-    downloadCsv(exportBom(rows), "bom-reviewed.csv", recordExport);
+  async function saveRows(snapshot = rows) {
+    setManagingJob(true);
+    setExportError("");
+    try {
+      if (access) {
+        const body = JSON.stringify(snapshot);
+        if (
+          reviewAttempt.current?.job !== access.id ||
+          reviewAttempt.current.body !== body
+        )
+          reviewAttempt.current = {
+            job: access.id,
+            body,
+            requestId: crypto.randomUUID(),
+          };
+        const saved = await saveReviewedResult(
+          access,
+          snapshot,
+          reviewAttempt.current.requestId,
+        );
+        setReviewStatus(
+          `Manual version ${saved.revision} saved privately with MST. Original OCR result is preserved.`,
+        );
+      } else {
+        await retained.run(
+          { stage: "manual-bom", page, crop, language: lang, sourceText: text },
+          originalFile.current
+            ? [{ role: "drawing", file: originalFile.current }]
+            : [],
+          inputMode.current,
+          () => ({ rows: snapshot }),
+        );
+        setReviewStatus("Manual BOM saved privately with MST.");
+      }
+      return true;
+    } catch (e) {
+      setExportError(
+        e instanceof Error ? e.message : "The reviewed result was not saved.",
+      );
+      return false;
+    } finally {
+      setManagingJob(false);
+    }
+  }
+  async function exportRows() {
+    const snapshot = rows.map((row) => ({ ...row }));
+    if (await saveRows(snapshot))
+      downloadCsv(exportBom(snapshot), "bom-reviewed.csv", recordExport);
   }
   async function exportExcel() {
     if (unavailable || !rows.length) return;
@@ -455,6 +517,7 @@ export function DrawingToBom() {
       text,
     };
     try {
+      if (!(await saveRows(snapshot))) return;
       const { downloadBomWorkbook } = await import("./bom-workbook");
       await downloadBomWorkbook(snapshot, source, recordExport);
     } catch (e) {
@@ -868,6 +931,13 @@ export function DrawingToBom() {
           <div className="result-actions">
             <button
               className="button secondary"
+              disabled={unavailable || (!rows.length && !access)}
+              onClick={() => void saveRows()}
+            >
+              Save current rows privately
+            </button>
+            <button
+              className="button secondary"
               disabled={unavailable || rows.length >= 500}
               onClick={() => setRows((r) => [...r, blankRow()])}
             >
@@ -888,6 +958,7 @@ export function DrawingToBom() {
               {exportingExcel ? "Preparing Excel…" : "Export Excel (.xlsx) ↓"}
             </button>
           </div>
+          {reviewStatus && <p role="status">{reviewStatus}</p>}
           {exportError && (
             <p className="notice error" role="alert">
               {exportError}
@@ -895,8 +966,8 @@ export function DrawingToBom() {
           )}
           <p className="hint">
             Excel includes your current rows, source details and review notes.
-            CSV is also available. Check the draft before ordering or changing
-            an assembly.
+            Saving or exporting retains your current rows as a separate version.
+            Check the draft before ordering or changing an assembly.
           </p>
           {text && (
             <details className="source-text">

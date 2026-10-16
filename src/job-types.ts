@@ -50,6 +50,12 @@ export type JobResult = {
   text: string;
   message: string;
   engine?: RecognitionEngine;
+  reviewed?: {
+    rows: BomRow[];
+    revision: number;
+    savedAt: number;
+    source: "browser_reported";
+  } | null;
 };
 export const terminal = (state: JobState) =>
   ["succeeded", "empty", "failed", "timed_out", "cancelled"].includes(state);

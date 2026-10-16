@@ -7,6 +7,7 @@ import {
   existsSync,
   rmSync,
   statfsSync,
+  statSync,
 } from "node:fs";
 import { join } from "node:path";
 import {
@@ -74,7 +75,45 @@ export class JobStore {
         filename TEXT NOT NULL, contact_email TEXT NOT NULL,
         referrer_host TEXT NOT NULL, user_agent TEXT NOT NULL,
         sha256 TEXT NOT NULL DEFAULT '', engine TEXT NOT NULL DEFAULT '',
-        result_rows INTEGER NOT NULL DEFAULT 0);`);
+        result_rows INTEGER NOT NULL DEFAULT 0);
+      CREATE TABLE IF NOT EXISTS visitor_events (id TEXT PRIMARY KEY, day TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS visitor_counters (
+        day TEXT,tool TEXT,source TEXT,traffic TEXT,language TEXT,country TEXT,country_source TEXT,count INTEGER,
+        PRIMARY KEY(day,tool,source,traffic,language,country,country_source));
+      CREATE TABLE IF NOT EXISTS visitor_dropped (day TEXT PRIMARY KEY,count INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS visitor_context (
+        job_id TEXT PRIMARY KEY REFERENCES jobs(id) ON DELETE CASCADE, value TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS job_record_bytes (
+        job_id TEXT PRIMARY KEY REFERENCES jobs(id) ON DELETE CASCADE, bytes INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS reviewed_results (
+        job_id TEXT NOT NULL REFERENCES jobs(id) ON DELETE CASCADE, revision INTEGER NOT NULL,
+        created INTEGER NOT NULL, sha256 TEXT NOT NULL, bytes INTEGER NOT NULL, value TEXT NOT NULL,
+        request_id TEXT NOT NULL, PRIMARY KEY(job_id,revision), UNIQUE(job_id,request_id));
+      CREATE TABLE IF NOT EXISTS submissions (
+        id TEXT PRIMARY KEY, token_hash TEXT NOT NULL, address_hash TEXT NOT NULL,
+        state TEXT NOT NULL, created INTEGER NOT NULL, updated INTEGER NOT NULL,
+        bytes INTEGER NOT NULL, metadata_bytes INTEGER NOT NULL, manifest_hash TEXT NOT NULL,
+        context TEXT NOT NULL, tool TEXT NOT NULL, mode TEXT NOT NULL, traffic TEXT NOT NULL);
+      CREATE INDEX IF NOT EXISTS submissions_owner ON submissions(created,id);
+      CREATE TABLE IF NOT EXISTS submission_files (
+        submission_id TEXT NOT NULL REFERENCES submissions(id) ON DELETE CASCADE,
+        slot INTEGER NOT NULL, bytes INTEGER NOT NULL, sha256 TEXT NOT NULL,
+        complete INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(submission_id,slot));`);
+    for (const job of this.all()) {
+      const result = join(this.dir(job.id), "result.json");
+      const bytes =
+        4096 +
+        (existsSync(result)
+          ? statSync(result).size
+          : ["uploading", "queued", "processing"].includes(job.state)
+            ? 2 * 1024 * 1024
+            : 0);
+      this.db
+        .prepare(
+          "INSERT INTO job_record_bytes VALUES(?,?) ON CONFLICT(job_id) DO UPDATE SET bytes=excluded.bytes",
+        )
+        .run(job.id, bytes);
+    }
   }
   dir(id: string) {
     return join(this.config.dataDir, "files", id);
@@ -91,7 +130,7 @@ export class JobStore {
     return this.db.prepare("SELECT * FROM jobs WHERE id=?").get(id) as
       Job | undefined;
   }
-  authorized(job: Job | undefined, token: string) {
+  authorized(job: { token_hash: string } | undefined, token: string) {
     return (
       !!job &&
       timingSafeEqual(
@@ -142,6 +181,98 @@ export class JobStore {
       )
       .run(JSON.stringify(engine || {}), rows, id);
   }
+  storedBytes() {
+    return (
+      this.db
+        .prepare(
+          "SELECT COALESCE(SUM(bytes),0) bytes FROM (SELECT bytes FROM jobs UNION ALL SELECT bytes FROM submissions UNION ALL SELECT bytes FROM reviewed_results UNION ALL SELECT bytes FROM job_record_bytes)",
+        )
+        .get() as { bytes: number }
+    ).bytes;
+  }
+  // Only pending records reserve future physical bytes. Account for bytes already
+  // written to source/scratch files so concurrent streams cannot spend the same
+  // free space. The pending-record cap keeps these filesystem checks bounded.
+  outstandingBytes() {
+    const size = (path: string) => (existsSync(path) ? statSync(path).size : 0);
+    let remaining = 0;
+    for (const job of this.all().filter((j) =>
+      ["uploading", "queued", "processing"].includes(j.state),
+    )) {
+      const record = this.db
+        .prepare("SELECT bytes FROM job_record_bytes WHERE job_id=?")
+        .get(job.id) as { bytes: number };
+      remaining += Math.max(
+        0,
+        job.bytes -
+          size(join(this.dir(job.id), "source")) -
+          size(join(this.dir(job.id), "upload.part")),
+      );
+      remaining += Math.max(
+        0,
+        record.bytes - size(join(this.dir(job.id), "result.json")),
+      );
+    }
+    for (const row of this.db
+      .prepare("SELECT id,bytes FROM submissions WHERE state='uploading'")
+      .all() as { id: string; bytes: number }[]) {
+      const dir = join(this.config.dataDir, "submissions", row.id);
+      let written = size(join(dir, "record.json"));
+      for (const file of this.db
+        .prepare("SELECT slot FROM submission_files WHERE submission_id=?")
+        .all(row.id)) {
+        written +=
+          size(join(dir, String(file.slot))) +
+          size(join(dir, `${file.slot}.part`));
+      }
+      remaining += Math.max(0, row.bytes - written);
+    }
+    return remaining;
+  }
+  freeBytes() {
+    const disk = statfsSync(this.config.dataDir);
+    return disk.bavail * disk.bsize;
+  }
+  hasPhysicalSpace(additional = 0) {
+    return (
+      this.freeBytes() - this.outstandingBytes() - additional >=
+      this.config.minFreeBytes
+    );
+  }
+  reserveCheck(address: string, bytes: number, now = Date.now()) {
+    const bucket = Math.floor(now / 3600_000);
+    const rate = this.db
+      .prepare("SELECT count FROM rate WHERE address_hash=? AND bucket>=?")
+      .all(address, bucket - 1) as { count: number }[];
+    if (
+      rate.reduce((sum, row) => sum + row.count, 0) >= this.config.hourlyLimit
+    )
+      return "rate_limit";
+    const pending = this.db
+      .prepare(
+        "SELECT COUNT(*) n, COALESCE(SUM(address_hash=?),0) own FROM (SELECT address_hash FROM jobs WHERE state IN ('uploading','queued','processing') UNION ALL SELECT address_hash FROM submissions WHERE state='uploading')",
+      )
+      .get(address) as { n: number; own: number };
+    const total = this.db
+      .prepare(
+        "SELECT COALESCE(SUM(bytes),0) bytes FROM (SELECT bytes FROM jobs UNION ALL SELECT bytes FROM submissions UNION ALL SELECT bytes FROM reviewed_results UNION ALL SELECT bytes FROM job_record_bytes)",
+      )
+      .get() as { bytes: number };
+    const count = this.db
+      .prepare(
+        "SELECT (SELECT COUNT(*) FROM jobs)+(SELECT COUNT(*) FROM submissions) n",
+      )
+      .get() as { n: number };
+    if (
+      count.n >= 10000 ||
+      pending.n >= this.config.maxPending ||
+      pending.own >= this.config.perAddressPending ||
+      total.bytes + bytes > this.config.maxStoredBytes ||
+      !this.hasPhysicalSpace(bytes)
+    )
+      return "busy";
+    return null;
+  }
   create(
     id: string,
     token: string,
@@ -153,29 +284,12 @@ export class JobStore {
   ) {
     const address = this.address(ip, now),
       bucket = Math.floor(now / 3600_000);
-    const rate = this.db
-      .prepare("SELECT count FROM rate WHERE address_hash=? AND bucket>=?")
-      .all(address, bucket - 1) as { count: number }[];
-    if (
-      rate.reduce((sum, row) => sum + row.count, 0) >= this.config.hourlyLimit
-    )
-      return "rate_limit";
-    const pending = this.db
-      .prepare(
-        "SELECT COUNT(*) n, COALESCE(SUM(address_hash=?),0) own FROM jobs WHERE state IN ('uploading','queued','processing')",
-      )
-      .get(address) as { n: number; own: number };
-    const total = this.db
-      .prepare("SELECT COALESCE(SUM(bytes),0) bytes FROM jobs")
-      .get() as { bytes: number };
-    const disk = statfsSync(this.config.dataDir);
-    if (
-      pending.n >= this.config.maxPending ||
-      pending.own >= this.config.perAddressPending ||
-      total.bytes + bytes > this.config.maxStoredBytes ||
-      disk.bavail * disk.bsize - bytes < this.config.minFreeBytes
-    )
-      return "busy";
+    const rejected = this.reserveCheck(
+      address,
+      bytes + 4096 + 2 * 1024 * 1024,
+      now,
+    );
+    if (rejected) return rejected;
     this.db
       .prepare(
         `INSERT INTO jobs VALUES(?,?,?,'uploading','uploading',0,?,?,?,?,?,?,NULL)`,
@@ -191,6 +305,9 @@ export class JobStore {
         mime,
         JSON.stringify(options),
       );
+    this.db
+      .prepare("INSERT INTO job_record_bytes VALUES(?,?)")
+      .run(id, 4096 + 2 * 1024 * 1024);
     this.db
       .prepare(
         "INSERT INTO rate VALUES(?,?,1) ON CONFLICT(address_hash,bucket) DO UPDATE SET count=count+1",
@@ -247,6 +364,10 @@ export class JobStore {
     this.event(id, state, error || "", Date.now(), () =>
       this.update(id, state, "finished", 1, error),
     );
+    const result = join(this.dir(id), "result.json");
+    this.db
+      .prepare("UPDATE job_record_bytes SET bytes=? WHERE job_id=?")
+      .run(4096 + (existsSync(result) ? statSync(result).size : 0), id);
   }
   snapshot(job: Job): JobSnapshot {
     return {

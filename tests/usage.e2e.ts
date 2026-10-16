@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { isVisitRequest } from "./visit-request";
+import { isVisitRequest, isPrivateToolRequest, isAllowedToolWrite } from "./visit-request";
 const origin = "https://mst-us.ai";
 async function localOrigin(page: import("@playwright/test").Page) {
   if (process.env.MST_TOOLS_BASE_URL) return;
@@ -9,6 +9,12 @@ async function localOrigin(page: import("@playwright/test").Page) {
     if (path.startsWith("/wp-json/mst-visits/")) {
       expect(isVisitRequest(request)).toBe(true);
       return route.fulfill({ status: 204 });
+    }
+    if (path.startsWith("/tools-api/")) {
+      expect(isPrivateToolRequest(request) || request.method() === "GET").toBe(true);
+      const headers: Record<string, string> = { ...request.headers(), origin: "http://127.0.0.1:4173" }; delete headers["content-length"];
+      const response = await fetch("http://127.0.0.1:4174" + path, { method: request.method(), headers, body: request.postDataBuffer() as unknown as BodyInit || undefined });
+      return route.fulfill({ status: response.status, headers: Object.fromEntries(response.headers), body: Buffer.from(await response.arrayBuffer()) });
     }
     const response = await fetch("http://127.0.0.1:4173" + path);
     return route.fulfill({
@@ -27,8 +33,8 @@ test("handbook PV and real compare-result-export phases, invalid input never com
     errors: string[] = [];
   page.on("request", (r) => {
     if (r.method() === "POST") {
-      expect(isVisitRequest(r)).toBe(true);
-      writes.push(r.postDataJSON());
+      expect(isAllowedToolWrite(r)).toBe(true);
+      if (isVisitRequest(r)) writes.push(r.postDataJSON());
     }
   });
   page.on("pageerror", (e) => errors.push(e.message));
@@ -82,7 +88,7 @@ test("privacy exclusion also suppresses real tool phases", async ({ page }) => {
   await localOrigin(page);
   const writes: string[] = [];
   page.on("request", (r) => {
-    if (r.method() === "POST") writes.push(r.url());
+    if (r.method() === "POST" && !isPrivateToolRequest(r)) writes.push(r.url());
   });
   await page.addInitScript(() =>
     Object.defineProperty(navigator, "globalPrivacyControl", {
@@ -108,8 +114,8 @@ for (const [tool, sampleButton, runButton, exportButton] of [
   const events: Record<string, unknown>[] = [];
   page.on("request", (r) => {
     if (r.method() === "POST") {
-      expect(isVisitRequest(r)).toBe(true);
-      events.push(r.postDataJSON());
+      expect(isAllowedToolWrite(r)).toBe(true);
+      if (isVisitRequest(r)) events.push(r.postDataJSON());
     }
   });
   await page.goto(origin + `/tools/${tool}/?mst_analytics_test=1`);
