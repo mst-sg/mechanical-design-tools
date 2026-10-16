@@ -57,7 +57,9 @@ export function App({ path }: { path: string }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
       keepalive: true,
-    }).catch(() => {});
+    })
+      .then((response) => response.arrayBuffer())
+      .catch(() => {});
   }, [active?.slug]);
 
   return (

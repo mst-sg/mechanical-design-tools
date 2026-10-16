@@ -530,6 +530,7 @@ test("manual BOM versions persist independently, retry safely, restore final row
       description: "Owner fixture",
       quantity: "4",
       material: "Steel",
+      confidence: 98.5,
     },
   ];
   const first = { v: 1, rows, requestId: randomUUID() };
@@ -542,6 +543,18 @@ test("manual BOM versions persist independently, retry safely, restore final row
       { "Content-Type": "application/json" },
     );
   assert.equal((await save(first, f.access().token)).status, 404);
+  for (const confidence of [-1, 101, null, "99"]) {
+    assert.equal(
+      (
+        await save({
+          ...first,
+          requestId: randomUUID(),
+          rows: [{ ...rows[0], confidence }],
+        })
+      ).status,
+      400,
+    );
+  }
   assert.equal((await save(first)).status, 200);
   const used = f.app.store.storedBytes();
   assert.equal((await save(first)).status, 200);

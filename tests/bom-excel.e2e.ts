@@ -11,7 +11,7 @@ function readWorkbook(
   );
 }
 
-test("edited Excel matches the submitted source after recropping and reports missing provenance after reload", async ({
+test("edited Excel matches the submitted source and saved manual rows survive reload", async ({
   page,
 }, info) => {
   const errors: string[] = [];
@@ -50,7 +50,7 @@ test("edited Excel matches the submitted source after recropping and reports mis
   await page.reload();
   await expect(
     page.getByLabel("Row 1 Part number", { exact: true }),
-  ).toHaveValue("BRK-100");
+  ).toHaveValue("000007");
   const restoredDownload = page.waitForEvent("download");
   await page.getByRole("button", { name: "Export Excel" }).click();
   const restored = readWorkbook((await (await restoredDownload).path())!);

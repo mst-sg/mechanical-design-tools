@@ -59,14 +59,23 @@ export async function saveReviewed(
     value.rows.some(
       (row: BomRow) =>
         !row ||
-        Object.keys(row).sort().join(",") !==
-          "description,id,item,material,partNumber,quantity" ||
-        Object.values(row).some(
-          (v) =>
-            typeof v !== "string" ||
-            v.length > 10000 ||
-            /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(v),
-        ),
+        ![
+          "description,id,item,material,partNumber,quantity",
+          "confidence,description,id,item,material,partNumber,quantity",
+        ].includes(Object.keys(row).sort().join(",")) ||
+        ("confidence" in row &&
+          (typeof row.confidence !== "number" ||
+            !Number.isFinite(row.confidence) ||
+            row.confidence < 0 ||
+            row.confidence > 100)) ||
+        Object.entries(row)
+          .filter(([key]) => key !== "confidence")
+          .some(
+            ([, v]) =>
+              typeof v !== "string" ||
+              v.length > 10000 ||
+              /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(v),
+          ),
     )
   )
     throw new SubmissionError(

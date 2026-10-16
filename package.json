@@ -18,7 +18,8 @@
     "start:jobs": "node server-dist/main.mjs",
     "test:server": "tsx --test tests/server.test.ts",
     "build:gateway": "node scripts/gateway.mjs",
-    "build:us-gateway": "node scripts/us-gateway.mjs"
+    "build:us-gateway": "node scripts/us-gateway.mjs",
+    "build:us-entry": "node scripts/us-entry.mjs"
   },
   "dependencies": {
     "@napi-rs/canvas": "1.0.9",

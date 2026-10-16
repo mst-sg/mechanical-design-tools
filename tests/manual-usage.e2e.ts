@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { Resvg } from "@resvg/resvg-js";
 import { readFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import { parseCsv } from "../src/csv";
 import { isVisitRequest } from "./visit-request";
 
@@ -16,6 +17,11 @@ const drawing = new Resvg(
 async function observe(page: Page) {
   const events: Record<string, unknown>[] = [];
   const errors: string[] = [];
+  const uploadFiles = new Map<string, Buffer[]>();
+  const knownFiles = [
+    drawing,
+    await readFile("public/samples/title-block.png"),
+  ];
   await page.context().route("**/*", async (route) => {
     const request = route.request(),
       url = new URL(request.url());
@@ -31,15 +37,41 @@ async function observe(page: Page) {
         host: "127.0.0.1:4174",
       };
       delete headers["content-length"];
+      if (
+        request.method() === "POST" &&
+        /\/submissions\/[a-f0-9-]+$/.test(url.pathname)
+      ) {
+        const manifest = request.postDataJSON();
+        uploadFiles.set(
+          url.pathname.split("/").at(-1)!,
+          manifest.files.map((file: { sha256: string }) => {
+            const original = knownFiles.find(
+              (candidate) =>
+                createHash("sha256").update(candidate).digest("hex") ===
+                file.sha256,
+            );
+            if (!original)
+              throw new Error(
+                "Unexpected retained attachment in local contract",
+              );
+            return original;
+          }),
+        );
+      }
+      const attachment = /\/submissions\/([a-f0-9-]+)\/files\/(\d+)$/.exec(
+        url.pathname,
+      );
       const body =
         request.method() === "GET"
           ? undefined
-          : request.method() === "POST" &&
-              (/\/jobs\/[a-f0-9-]+$/.test(url.pathname) || /\/submissions\/[a-f0-9-]+\/files\/0$/.test(url.pathname))
-            ? // WebKit's intercepted binary postData is not byte preserving.
-              // Forward the exact synthetic file selected by noLabels below.
-              drawing
-            : request.postDataBuffer() || undefined;
+          : request.method() === "POST" && attachment
+            ? uploadFiles.get(attachment[1])?.[Number(attachment[2])]
+            : request.method() === "POST" &&
+                /\/jobs\/[a-f0-9-]+$/.test(url.pathname)
+              ? // WebKit's intercepted binary postData is not byte preserving.
+                // Forward the exact synthetic file selected by noLabels below.
+                drawing
+              : request.postDataBuffer() || undefined;
       const response = await fetch("http://127.0.0.1:4174" + url.pathname, {
         method: request.method(),
         headers,
