@@ -21,3 +21,30 @@ Lists exclude QA by default and return 50 records per page. They expose entered 
 Use exact successful main CI artifacts for backend, child, edge. Stop admission before a SQLite online snapshot + private-file backup; verify a separate restore and preserve directory modes. Reuse the existing data directory and rate key. Rollback the runtime only with uploads paused: old code does not account for generic records and must not resume admission. Keep the additive data for forward recovery. No periodic/off-host backup claim is made by a one-time release backup.
 
 Focused backend regressions cover old-capability races, cross-record/origin denial, interrupted and corrupt originals, quota races and stream free-space drops. Browser acceptance must include selected files, visible acknowledgement, refresh, original byte-equal download, reviewed edit restore, failure/retry, desktop/mobile and owner-role download rejection. Hosted CI's original no-content-in-analytics assertions remain; authenticated private writes are checked separately.
+# SG static engineering tools
+
+The SG service also accepts manifest version 2 for the 22 named static tools in
+`src/sg-submission-types.ts`. It requires the configured origin to be exactly
+`https://mst-sg.com`, validates the page language (`en`, `zh-CN`, `es`, `ar`, `ja`),
+and stores each execution as an immutable private record. Version 1 mechanical
+tools retain their existing 25 MiB per-file limit and schema on both services.
+
+Version 2 accepts up to three original files. The report revision checker keeps
+its existing 100,000,000-byte layout allowance and a 100,256,000-byte total for
+the layout plus two metadata files. Other static tools retain the 25 MiB
+per-file ceiling. SG upload streaming has a 300-second deadline; shared disk,
+reservation, network rate and concurrency limits still apply. A failed browser
+analysis is a saved result, not permission to discard its original files.
+Version 2 text is bounded at 16 MiB so the existing million-character log inputs
+and their full findings can be retained. Version 1 stays bounded at 2 MiB.
+Input/result structures allow at most one million nodes and 32 nesting levels;
+large strings do not consume a node per character. Traversal uses depth-bounded
+memory. At most two extended JSON bodies can be read concurrently, with a
+60-second body deadline; overload returns 503 and allows a later retry.
+
+The SG operator proxy listens only on `127.0.0.1:4185`, uses the existing SG
+gateway credential plus a separate operator read credential, and is distinct
+from US port 4186. WordPress is responsible for owner roles and download nonces.
+Deploy from the exact successful main CI artifact after draining jobs and
+verifying a restorable database/file backup. Release code directories must be
+0755 for the capability-dropped launcher; private data directories stay 0700.

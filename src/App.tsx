@@ -24,6 +24,7 @@ export function App({ path }: { path: string }) {
     // collector is deliberately absent from this private application origin.
     if (
       location.hostname !== "tools.mst-us.ai" &&
+      location.hostname !== "mst-sg.com" &&
       !["127.0.0.1", "localhost"].includes(location.hostname)
     )
       return;

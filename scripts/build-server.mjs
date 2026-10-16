@@ -29,6 +29,7 @@ const paths = [
   "deploy/mst-tools-jobs-cleanup.service",
   "deploy/mst-tools-jobs-cleanup.timer",
   "deploy/nginx-tools-api.conf",
+  "deploy/nginx-sg-tools-operator.conf",
   "server-dist/paddle-service.py",
   "server-dist/paddle-supervisor.py",
   "deploy/Dockerfile.gpu-runtime",
