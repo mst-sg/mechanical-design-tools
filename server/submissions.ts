@@ -25,8 +25,13 @@ import {
   submissionLimits as limits,
   submissionTools,
   sourceLabels,
-  type SubmissionManifest,
 } from "../src/submission-types";
+import {
+  sgSubmissionTools,
+  sgPageLanguages,
+  sgSubmissionLimits,
+  type RetainedManifest,
+} from "../src/sg-submission-types";
 
 export class SubmissionError extends Error {
   constructor(
@@ -67,26 +72,47 @@ type FileRow = {
   sha256: string;
   complete: number;
 };
+let largeJsonReaders = 0;
 export async function jsonBody(req: IncomingMessage, max = limits.jsonBytes) {
   if (req.headers["content-type"]?.split(";")[0] !== "application/json")
     throw bad("Use a JSON submission.");
-  const parts: Buffer[] = [];
-  let received = 0;
-  for await (const chunk of req) {
-    received += chunk.length;
-    if (received > max)
-      throw new SubmissionError(
-        413,
-        "too_large",
-        "The submission text exceeds 2 MB.",
-      );
-    parts.push(chunk);
-  }
+  // A few slow 16 MiB requests must not fill the process before storage/rate
+  // admission can run. Small visit/review requests retain their own allowance.
+  const large = max > limits.jsonBytes;
+  if (large && largeJsonReaders >= 2)
+    throw new SubmissionError(
+      503,
+      "unavailable",
+      "Saving is busy. Please retry shortly.",
+    );
+  if (large) largeJsonReaders++;
+  const deadline = setTimeout(
+    () => req.destroy(new Error("JSON upload timed out.")),
+    60000,
+  );
+  deadline.unref();
   try {
+    const parts: Buffer[] = [];
+    let received = 0;
+    for await (const chunk of req) {
+      received += chunk.length;
+      if (received > max)
+        throw new SubmissionError(
+          413,
+          "too_large",
+          "The submitted text exceeds the allowed storage size.",
+        );
+      parts.push(chunk);
+    }
     const raw = Buffer.concat(parts);
-    return { value: JSON.parse(raw.toString("utf8")), raw };
-  } catch {
-    throw bad("The submission is not valid JSON.");
+    try {
+      return { value: JSON.parse(raw.toString("utf8")), raw };
+    } catch {
+      throw bad("The submission is not valid JSON.");
+    }
+  } finally {
+    clearTimeout(deadline);
+    if (large) largeJsonReaders--;
   }
 }
 function safeText(v: unknown, max: number) {
@@ -94,16 +120,23 @@ function safeText(v: unknown, max: number) {
     typeof v === "string" && v.length <= max && !/[\u0000-\u001f\u007f]/.test(v)
   );
 }
-export function parseManifest(value: unknown): SubmissionManifest {
-  const v = value as SubmissionManifest;
+export function parseManifest(value: unknown, origin = ""): RetainedManifest {
+  const v = value as RetainedManifest;
+  const sg = v?.v === 2 && origin === "https://mst-sg.com";
+  const activeLimits = sg ? sgSubmissionLimits(v.tool) : limits;
   if (
     !v ||
     typeof v !== "object" ||
     Array.isArray(v) ||
     Object.keys(v).sort().join(",") !==
-      "contactEmail,files,inputs,mode,result,source,tool,traffic,v,visitorId" ||
-    v.v !== 1 ||
-    !submissionTools.includes(v.tool) ||
+      (sg
+        ? "contactEmail,files,inputs,mode,pageLanguage,result,source,tool,traffic,v,visitorId"
+        : "contactEmail,files,inputs,mode,result,source,tool,traffic,v,visitorId") ||
+    (sg
+      ? v.v !== 2 ||
+        !sgSubmissionTools.includes(v.tool) ||
+        !sgPageLanguages.includes(v.pageLanguage)
+      : v.v !== 1 || !submissionTools.includes(v.tool)) ||
     !["sample", "provided", "default"].includes(v.mode) ||
     !["test", "browser"].includes(v.traffic) ||
     !sourceLabels.includes(v.source) ||
@@ -111,7 +144,7 @@ export function parseManifest(value: unknown): SubmissionManifest {
     !safeText(v.contactEmail, 254) ||
     (v.contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.contactEmail)) ||
     !Array.isArray(v.files) ||
-    v.files.length > limits.files
+    v.files.length > activeLimits.files
   )
     throw bad();
   let total = 0;
@@ -130,28 +163,35 @@ export function parseManifest(value: unknown): SubmissionManifest {
       f.relativePath.split(/[\\/]/).some((p) => p === "..") ||
       !Number.isSafeInteger(f.size) ||
       f.size < 0 ||
-      f.size > limits.fileBytes ||
+      f.size > activeLimits.fileBytes ||
       !/^[a-f0-9]{64}$/.test(f.sha256)
     )
       throw bad();
     total += f.size;
   }
-  if (total > limits.totalBytes)
+  if (total > activeLimits.totalBytes)
     throw new SubmissionError(
       413,
       "too_large",
-      "Choose at most 32 files, 25 MB each and 100 MB in total.",
+      "The selected attachments exceed this tool's storage limit.",
     );
-  const stack: [unknown, number][] = [
-    [v.inputs, 0],
-    [v.result, 0],
-  ];
-  while (stack.length) {
-    const [item, depth] = stack.pop()!;
+  // Keep traversal memory proportional to depth, not array width. A large
+  // source string is one node; full log text remains supported.
+  let remainingNodes = 1_000_000;
+  const inspect = (item: unknown, depth: number) => {
+    if (--remainingNodes < 0)
+      throw bad("The submission contains too many fields.");
     if (depth > 32) throw bad();
-    if (item && typeof item === "object")
-      for (const child of Object.values(item)) stack.push([child, depth + 1]);
-  }
+    if (Array.isArray(item)) {
+      for (let i = 0; i < item.length; i++) inspect(item[i], depth + 1);
+    } else if (item && typeof item === "object") {
+      for (const key in item)
+        if (Object.hasOwn(item, key))
+          inspect((item as Record<string, unknown>)[key], depth + 1);
+    }
+  };
+  inspect(v.inputs, 0);
+  inspect(v.result, 0);
   return v;
 }
 export class SubmissionService {
@@ -288,8 +328,19 @@ export class SubmissionService {
           "Please try again shortly.",
         );
       if (row && !this.store.authorized(row, token)) throw absent();
-      const { value, raw } = await jsonBody(req);
-      const manifest = parseManifest(value);
+      const { value, raw } = await jsonBody(
+        req,
+        this.store.config.origin === "https://mst-sg.com"
+          ? 16 * 1024 * 1024
+          : limits.jsonBytes,
+      );
+      const manifest = parseManifest(value, this.store.config.origin);
+      if (manifest.v === 1 && raw.length > limits.jsonBytes)
+        throw new SubmissionError(
+          413,
+          "too_large",
+          "The submission text exceeds 2 MB.",
+        );
       const digest = this.store.digest(raw.toString("utf8"));
       // Recheck after awaiting the body; another same-ID request may have won.
       row = this.get(id);
@@ -324,6 +375,7 @@ export class SubmissionService {
         );
       const context = JSON.stringify({
         ...visitorContext(req, this.store.config),
+        ...(manifest.v === 2 ? { page_language: manifest.pageLanguage } : {}),
         visitor_id: manifest.visitorId,
         source: manifest.source,
         source_verified: false,

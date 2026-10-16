@@ -23,15 +23,17 @@ export type Config = {
   minFreeBytes: number;
 };
 export function configuration(overrides: Partial<Config> = {}): Config {
+  const origin =
+    overrides.origin ?? process.env.MST_JOBS_ORIGIN ?? "http://127.0.0.1:4173";
   return {
     dataDir: resolve(process.env.MST_JOBS_DATA || ".private-jobs"),
     assetsDir: resolve(process.env.MST_JOBS_ASSETS || "public/vendor"),
     workerPath: resolve("server-dist/worker.mjs"),
-    origin: process.env.MST_JOBS_ORIGIN || "http://127.0.0.1:4173",
+    origin,
     // Zero means retained until the visitor or an administrator deletes it.
     retentionMs: Number(process.env.MST_JOBS_RETENTION_DAYS || 0) * 86400_000,
     jobTimeoutMs: 90_000,
-    uploadTimeoutMs: 45_000,
+    uploadTimeoutMs: origin === "https://mst-sg.com" ? 300_000 : 45_000,
     queueTimeoutMs: 120_000,
     maxBytes: 25 * 1024 * 1024,
     maxStoredBytes: 20 * 1024 * 1024 * 1024,

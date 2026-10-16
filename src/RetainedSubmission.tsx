@@ -84,7 +84,8 @@ export function submissionSource(): SubmissionManifest["source"] {
     /* no referrer */
   }
   if (!host) return "direct";
-  if (["mst-us.ai", "tools.mst-us.ai"].includes(host)) return "internal";
+  if (["mst-us.ai", "tools.mst-us.ai", "mst-sg.com"].includes(host))
+    return "internal";
   if (/(^|\.)google\.(com|co\.uk|com\.sg|co\.jp|de|fr)$/.test(host))
     return "google";
   if (host === "bing.com" || host.endsWith(".bing.com")) return "bing";

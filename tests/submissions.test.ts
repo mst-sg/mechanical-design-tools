@@ -14,7 +14,9 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { request } from "node:http";
 import { createJobService } from "../server/app";
 import { configuration, type Config } from "../server/config";
-import { parseManifest } from "../server/submissions";
+import { jsonBody, parseManifest } from "../server/submissions";
+import { PassThrough } from "node:stream";
+import type { IncomingMessage } from "node:http";
 import { preferredLanguage } from "../server/visitor-context";
 import type { SubmissionManifest } from "../src/submission-types";
 const sha = (v: Buffer | string) =>
@@ -573,4 +575,187 @@ test("a streaming upload stops when external disk usage consumes the protected h
   await waitFor(() => !existsSync(join(dir, "0.part")));
   assert.equal(existsSync(join(dir, "0")), false);
   assert.equal((await f.req(a, "GET", "/files/0")).status, 404);
+});
+
+test("SG static runs are site-bound, localized and preserve the existing report layout limit", () => {
+  const value = {
+    ...manifest(),
+    v: 2,
+    tool: "report-revision-check",
+    pageLanguage: "zh-CN",
+    files: [
+      {
+        role: "layout",
+        name: "layout.gds",
+        relativePath: "",
+        size: 100_000_000,
+        sha256: sha("fixture"),
+      },
+    ],
+  };
+  assert.doesNotThrow(() => parseManifest(value, "https://mst-sg.com"));
+  for (const origin of [
+    "https://tools.mst-us.ai",
+    "https://mst-us.ai",
+    "",
+    "https://mst-sg.com.unrelated.invalid",
+  ])
+    assert.throws(() => parseManifest(value, origin));
+  assert.throws(() =>
+    parseManifest(
+      { ...value, files: [{ ...value.files[0], size: 100_000_001 }] },
+      "https://mst-sg.com",
+    ),
+  );
+  assert.throws(() =>
+    parseManifest(
+      { ...value, tool: "pdk-environment-check" },
+      "https://mst-sg.com",
+    ),
+  );
+  assert.throws(() =>
+    parseManifest({ ...value, pageLanguage: "invalid" }, "https://mst-sg.com"),
+  );
+  assert.throws(() =>
+    parseManifest({ ...value, tool: "../../private" }, "https://mst-sg.com"),
+  );
+  assert.throws(() => parseManifest({ ...value, v: 1 }, "https://mst-sg.com"));
+  assert.doesNotThrow(() =>
+    parseManifest(manifest(), "https://tools.mst-us.ai"),
+  );
+  assert.throws(() =>
+    parseManifest({ ...manifest(), files: value.files }, "https://mst-sg.com"),
+  );
+});
+
+test("SG failed analyses retain originals and the exact inputs/results in five page languages after restart", async (t) => {
+  const f = await fixture(t, { origin: "https://mst-sg.com" });
+  const cases: {
+    a: ReturnType<typeof access>;
+    value: unknown;
+    lang: string;
+    bytes: Buffer;
+  }[] = [];
+  for (const lang of ["en", "zh-CN", "es", "ar", "ja"]) {
+    const a = access(),
+      bytes = Buffer.from("owned malformed log fixture: " + lang);
+    const value = {
+      ...manifest(bytes),
+      v: 2,
+      tool: "verification-log-review",
+      pageLanguage: lang,
+      inputs: { source: bytes.toString(), format: "klayout" },
+      result: { status: "failed", error: "invalid_xml" },
+    };
+    assert.equal(
+      (
+        await f.req(a, "POST", "", value, {
+          "Accept-Language": "fr-CA,fr;q=0.8",
+        })
+      ).status,
+      201,
+    );
+    assert.equal((await f.req(a, "POST", "/files/0", bytes)).status, 200);
+    assert.equal((await f.req(a, "POST", "/finish")).status, 200);
+    cases.push({ a, value, lang, bytes });
+  }
+  await f.restart();
+  for (const c of cases) {
+    const saved = await (await f.req(c.a, "GET", "/record")).json();
+    assert.deepEqual(saved.submission, c.value);
+    assert.equal(saved.state, "completed");
+    assert.equal(saved.context.page_language, c.lang);
+    assert.equal(saved.context.browser_language, "fr-CA");
+    assert.equal(saved.context.country, "");
+    assert.deepEqual(
+      Buffer.from(await (await f.req(c.a, "GET", "/files/0")).arrayBuffer()),
+      c.bytes,
+    );
+    assert.equal(
+      (await f.req({ ...c.a, token: access().token }, "GET", "/record")).status,
+      404,
+    );
+  }
+});
+
+test("SG extended text allowance does not expand the mechanical v1 contract", async (t) => {
+  const f = await fixture(t, { origin: "https://mst-sg.com" });
+  const large = manifest();
+  large.files = [];
+  large.inputs = { text: "界".repeat(800000) };
+  assert.equal((await f.req(access(), "POST", "", large)).status, 413);
+  const sg = {
+    ...large,
+    v: 2,
+    tool: "verification-log-review",
+    pageLanguage: "zh-CN",
+  };
+  const a = access();
+  assert.equal((await f.req(a, "POST", "", sg)).status, 201);
+  assert.equal((await f.req(a, "POST", "/finish")).status, 200);
+  assert.deepEqual(
+    (await (await f.req(a, "GET", "/record")).json()).submission.inputs,
+    large.inputs,
+  );
+  assert.equal(
+    configuration({ origin: "https://mst-sg.com" }).uploadTimeoutMs,
+    300000,
+  );
+  assert.equal(
+    configuration({ origin: "https://tools.mst-us.ai" }).uploadTimeoutMs,
+    45000,
+  );
+});
+
+test("manifest validation rejects broad structures without expanding a child-node stack", () => {
+  const sg = {
+    ...manifest(),
+    v: 2,
+    tool: "verification-log-review",
+    pageLanguage: "en",
+    inputs: Array(1_000_001).fill(0),
+    files: [],
+  };
+  assert.throws(
+    () => parseManifest(sg, "https://mst-sg.com"),
+    /too many fields/,
+  );
+  sg.inputs = [];
+  assert.doesNotThrow(() =>
+    parseManifest(
+      { ...sg, inputs: { text: "界".repeat(1_000_000) } },
+      "https://mst-sg.com",
+    ),
+  );
+});
+
+test("large JSON readers bound concurrency and release admission on success or interruption", async () => {
+  const body = () => {
+    const stream = new PassThrough() as unknown as IncomingMessage;
+    stream.headers = { "content-type": "application/json" };
+    return stream;
+  };
+  const a = body(),
+    b = body(),
+    blocked = body();
+  const first = jsonBody(a, 16 * 1024 * 1024),
+    second = jsonBody(b, 16 * 1024 * 1024);
+  await assert.rejects(
+    jsonBody(blocked, 16 * 1024 * 1024),
+    (e: unknown) => (e as { status: number }).status === 503,
+  );
+  const normal = body(),
+    small = jsonBody(normal, 1024);
+  (normal as unknown as PassThrough).end("{}");
+  await small;
+  (a as unknown as PassThrough).end("{}");
+  await first;
+  const interrupted = assert.rejects(second, /synthetic interruption/);
+  b.destroy(new Error("synthetic interruption"));
+  await interrupted;
+  blocked.destroy();
+  const next = body(),
+    accepted = jsonBody(next, 16 * 1024 * 1024);
+  (next as unknown as PassThrough).end("{}");
+  await accepted;
 });
