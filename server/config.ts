@@ -16,6 +16,7 @@ export type Config = {
   perAddressPending: number;
   trustProxy: boolean;
   gatewayToken: string;
+  operatorToken: string;
   gatewayAddress: string;
   paddleUrl: string;
   paddleToken: string;
@@ -40,6 +41,7 @@ export function configuration(overrides: Partial<Config> = {}): Config {
     perAddressPending: 2,
     trustProxy: process.env.MST_JOBS_TRUST_PROXY === "1",
     gatewayToken: process.env.MST_JOBS_GATEWAY_TOKEN || "",
+    operatorToken: process.env.MST_JOBS_OPERATOR_READ_TOKEN || "",
     gatewayAddress: process.env.MST_JOBS_GATEWAY_ADDRESS || "",
     paddleUrl: process.env.MST_JOBS_PADDLE_URL || "http://127.0.0.1:7018",
     paddleToken: process.env.MST_JOBS_PADDLE_TOKEN || "",

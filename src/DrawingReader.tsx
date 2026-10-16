@@ -1,3 +1,4 @@
+import { useRetainedSubmission } from "./RetainedSubmission";
 import { startUsage, type UsageMode, type UsageRun } from "./usage";
 import { useEffect, useRef, useState, type PointerEvent } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
@@ -5,6 +6,7 @@ import { fileKind, loadImage, openPdf, pdfPage, type Drawing } from "./files";
 import { fullCrop, type Crop, type Word } from "./types";
 import { recognizeText } from "./recognize";
 export type ReadSheet = {
+  originalFile: File;
   mode: UsageMode;
   usage?: UsageRun;
   sourceId: string;
@@ -32,6 +34,7 @@ export function DrawingReader({
   recognitionMode = "text",
   highlight,
 }: Props) {
+  const retained = useRetainedSubmission();
   const [files, setFiles] = useState<SourceFile[]>([]),
     [selected, setSelected] = useState(0);
   const [drawing, setDrawing] = useState<Drawing | null>(null),
@@ -186,20 +189,34 @@ export function DrawingReader({
     setProgress({ message: "Loading recognition engine…", value: 0 });
     const timer = window.setTimeout(() => c.abort(), 120000);
     try {
-      const result = await recognizeText(
-        drawing.url,
-        crop,
-        language,
-        c.signal,
-        (message, value) => {
-          if (id === generation.current) setProgress({ message, value });
+      const result = await retained.run(
+        {
+          stage: "read-drawing",
+          filename: selectedSource.file.name,
+          page,
+          crop,
+          language,
+          recognitionMode,
         },
-        recognitionMode,
+        [{ role: "drawing", file: selectedSource.file }],
+        selectedSource.mode,
+        () =>
+          recognizeText(
+            drawing.url,
+            crop,
+            language,
+            c.signal,
+            (message, value) => {
+              if (id === generation.current) setProgress({ message, value });
+            },
+            recognitionMode,
+          ),
       );
       if (id === generation.current) {
         const arranged = result.layoutText || result.text;
         setText(arranged);
         resultCallback.current({
+          originalFile: selectedSource.file,
           mode: selectedSource.mode,
           usage,
           sourceId: `${selectedSource.id}:${page}`,
@@ -296,7 +313,7 @@ export function DrawingReader({
           25 MB per file
           {queue
             ? " · up to 10 files; review one sheet at a time"
-            : " · Files stay on this device"}
+            : " · Original is saved when you read"}
         </span>
       </label>
       {files.length > 1 && (

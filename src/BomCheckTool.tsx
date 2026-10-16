@@ -1,3 +1,4 @@
+import { useRetainedSubmission } from "./RetainedSubmission";
 import { startUsage, type UsageMode, type UsageRun } from "./usage";
 import { useMemo, useRef, useState, useEffect } from "react";
 import { auditBom, combinePart, sourceRows, type SourceRow } from "./bom-check";
@@ -14,6 +15,8 @@ const sample =
   "Item,Part number,Description,Quantity,Material,Unit,Revision\n1,000417,Spacer,0.1,Steel,ea,B\n2,000417,Spacer,0.2,Steel,ea,B\n3,BRK-22,Bracket,2,Steel,ea,A\n4,BRK-22,Bracket,2,Aluminium,ea,A\n5,,Seal,3,Rubber,ea,A\n6,PIN-8,Pin,,Steel,ea,A\n7, CAP-6 ,Cap,1,,ea,A";
 const PAGE_SIZE = 25;
 export function BomCheckTool() {
+  const retained = useRetainedSubmission();
+  const original = useRef<File | null>(null);
   const inputMode = useRef<UsageMode>("provided");
   const usage = useRef<UsageRun | null>(null);
   const [input, setInput] = useState(""),
@@ -48,6 +51,7 @@ export function BomCheckTool() {
     mode: UsageMode = "provided",
   ) {
     inputMode.current = mode;
+    if (mode === "sample") original.current = null;
     setInput(text);
     setName(filename);
     setHeader([]);
@@ -59,14 +63,30 @@ export function BomCheckTool() {
     setMerge(null);
     setPage(0);
   }
-  function check() {
+  async function check() {
     usage.current = startUsage(inputMode.current);
     setError("");
     setNotice("");
     try {
-      const data = parseCsv(input);
-      if (data.length < 2)
-        throw new Error("Include a header and at least one data row.");
+      const checked = await retained.run(
+        { input, name },
+        original.current ? [{ file: original.current, role: "bom" }] : [],
+        inputMode.current,
+        () => {
+          const parsed = parseCsv(input);
+          if (parsed.length < 2)
+            throw new Error("Include a header and at least one data row.");
+          return {
+            data: parsed,
+            analysis: auditBom(
+              parsed[0],
+              sourceRows(parsed),
+              guessColumns(parsed[0]),
+            ),
+          };
+        },
+      );
+      const data = checked.data;
       setHeader(data[0]);
       setRows(sourceRows(data));
       setMap(guessColumns(data[0]));
@@ -98,12 +118,24 @@ export function BomCheckTool() {
       "Checks update as you edit. Original source row numbers are retained.",
     );
   }
-  function exportCurrent() {
+  async function exportCurrent() {
     if (!reviewed || !rows.length || analysis.error) return;
-    downloadCsv(
-      toCsv([header, ...rows.map((r) => r.cells)]),
-      "bom-reviewed.csv",
-    );
+    try {
+      await retained.run(
+        { input, name, header, map, reviewed },
+        original.current ? [{ file: original.current, role: "bom" }] : [],
+        inputMode.current,
+        () => ({ rows, analysis }),
+      );
+      downloadCsv(
+        toCsv([header, ...rows.map((r) => r.cells)]),
+        "bom-reviewed.csv",
+      );
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "The reviewed result was not saved.",
+      );
+    }
   }
   const issueRows = new Set(analysis.issues.map((i) => i.row)),
     candidate = analysis.groups.find((g) => g.part === merge);
@@ -141,6 +173,7 @@ export function BomCheckTool() {
                 setError("");
                 try {
                   changeInput(await readUtf8(file), file.name);
+                  original.current = file;
                 } catch (err) {
                   setError(
                     err instanceof Error
@@ -550,11 +583,13 @@ export function BomCheckTool() {
         <ol>
           <li>
             <strong>Load and map.</strong> Open your BOM CSV and choose its
-            part-number and quantity columns. Map other fields you want to review.
+            part-number and quantity columns. Map other fields you want to
+            review.
           </li>
           <li>
             <strong>Review the findings.</strong> Check duplicate part numbers,
-            missing quantities and conflicting attributes against the source BOM.
+            missing quantities and conflicting attributes against the source
+            BOM.
           </li>
           <li>
             <strong>Keep the result.</strong> Export every original column, or
@@ -564,8 +599,8 @@ export function BomCheckTool() {
         <p>
           A repeated part number is a review item, not proof of an error.
           Combine only separate occurrences that should be totalled; remove an
-          accidental copied row instead. Conflicting attributes or units must
-          be resolved before combining.
+          accidental copied row instead. Conflicting attributes or units must be
+          resolved before combining.
         </p>
         <div className="related-links">
           <a href="/tools/handbook/#duplicates">

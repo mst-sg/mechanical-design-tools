@@ -3,22 +3,27 @@ export const tools = [
     slug: "line-list-check",
     name: "Line List Check",
     eyebrow: "LINE LIST + REVIEWED P&ID RECORDS → DISCREPANCIES",
-    description: "Compare a line list with reviewed P&ID records. Find missing line numbers, duplicate identities and differences in endpoints, size, piping class or service. Review and export CSV.",
+    description:
+      "Compare a line list with reviewed P&ID records. Find missing line numbers, duplicate identities and differences in endpoints, size, piping class or service. Review and export CSV.",
     subtitle: "Reconcile your line list with records checked against the P&ID.",
   },
   {
     slug: "delivery-package-check",
     name: "Delivery Package Check",
     eyebrow: "REQUIRED FILES + LOCAL FOLDER → HANDOFF REVIEW",
-    description: "Check a drawing delivery manifest against selected local files. Find missing PDFs or STEP files, empty files and ambiguous names. Review and export findings without uploading documents.",
-    subtitle: "Find missing drawing and model files before sending a delivery package.",
+    description:
+      "Check a drawing delivery manifest against selected local files. Find missing PDFs or STEP files, empty files and ambiguous names. Review findings while keeping submitted originals and results in private MST storage.",
+    subtitle:
+      "Find missing drawing and model files before sending a delivery package.",
   },
   {
     slug: "connection-table-check",
     name: "Connection Table Check",
     eyebrow: "P&ID TAGS + FROM/TO CSV → REVIEW LIST",
-    description: "Compare a connection table with reviewed P&ID tags and optional BOM assignments. Find missing endpoints, repeated pairs and unmapped tags. Export source-record findings.",
-    subtitle: "Find disagreements between your P&ID tag list, connection table and BOM.",
+    description:
+      "Compare a connection table with reviewed P&ID tags and optional BOM assignments. Find missing endpoints, repeated pairs and unmapped tags. Export source-record findings.",
+    subtitle:
+      "Find disagreements between your P&ID tag list, connection table and BOM.",
   },
   {
     slug: "pid-tag-check",
@@ -36,8 +41,9 @@ export const tools = [
     searchTitle: "Compare Two BOM CSV Files by Part Number | MST",
     eyebrow: "REVISION A → REVISION B",
     description:
-      "Compare two BOM CSV files by part number. Find added or removed parts and quantity, description or material changes. Free, no file upload.",
-    subtitle: "Match part numbers and review quantity, description and material changes between two flat BOMs.",
+      "Compare two BOM CSV files by part number. Find added or removed parts and quantity, description or material changes. Free, with private input, original file and result storage.",
+    subtitle:
+      "Match part numbers and review quantity, description and material changes between two flat BOMs.",
   },
   {
     slug: "bom-model-check",
@@ -60,10 +66,11 @@ export const tools = [
     slug: "bom-check",
     name: "BOM Check",
     heading: "BOM CSV Checker",
-    searchTitle: "BOM CSV Checker: Duplicate Parts and Missing Quantities | MST",
+    searchTitle:
+      "BOM CSV Checker: Duplicate Parts and Missing Quantities | MST",
     eyebrow: "EXPORTED DATA → REVIEWED BOM",
     description:
-      "Check a BOM CSV for duplicate part numbers, missing quantities and conflicting fields. Review and export every column locally. Free, no sign-in.",
+      "Check a BOM CSV for duplicate part numbers, missing quantities and conflicting fields. Review every column and save originals and results privately. Free, no sign-in.",
     subtitle:
       "Find duplicate part numbers, missing quantities and conflicting fields in a flat BOM CSV.",
   },

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { isVisitRequest } from './visit-request';
+import { isVisitRequest, isPrivateToolRequest, isAllowedToolWrite } from './visit-request';
 
 for (const scenario of [
   { name: 'Bing', query: '', referer: 'https://cn.bing.com/search?q=PRIVATE-DRAWING', source: 'bing' },
@@ -22,8 +22,8 @@ for (const scenario of [
   await page.addInitScript(() => { localStorage.setItem('mst_us_analytics_consent_v1','declined'); });
   page.on('request', request => {
     if (request.method() === 'POST') {
-      if (!isVisitRequest(request)) unexpected.push('Unexpected POST');
-      writes.push(request.postDataJSON());
+      if (!isAllowedToolWrite(request)) unexpected.push('Unexpected POST');
+      if (isVisitRequest(request)) writes.push(request.postDataJSON());
     }
     if (/googletagmanager|google-analytics/.test(request.url())) unexpected.push('Unexpected Google request');
   });

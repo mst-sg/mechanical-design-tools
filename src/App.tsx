@@ -1,3 +1,5 @@
+import { RetainedSubmission, submissionSource } from "./RetainedSubmission";
+import type { SubmissionTool } from "./submission-types";
 import { DrawingToBom } from "./DrawTool";
 import { BomCompare } from "./CompareTool";
 import { BomCheckTool } from "./BomCheckTool";
@@ -9,13 +11,57 @@ import { ConnectionTableTool } from "./ConnectionTableTool";
 import { LineListTool } from "./LineListTool";
 import { DeliveryPackageTool } from "./DeliveryPackageTool";
 import { tools } from "./catalog";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 export function App({ path }: { path: string }) {
   const [ready, setReady] = useState(false);
   useEffect(() => setReady(true), []);
   const drawing = path.endsWith("/drawing-to-bom"),
     compare = path.endsWith("/bom-compare");
   const active = tools.find((t) => path.endsWith("/" + t.slug));
+  const visitId = useRef("");
+  useEffect(() => {
+    // The trusted child has its own first-party collector. The legacy WP
+    // collector is deliberately absent from this private application origin.
+    if (
+      location.hostname !== "tools.mst-us.ai" &&
+      !["127.0.0.1", "localhost"].includes(location.hostname)
+    )
+      return;
+    if (
+      navigator.doNotTrack === "1" ||
+      (navigator as Navigator & { globalPrivacyControl?: boolean })
+        .globalPrivacyControl
+    )
+      return;
+    try {
+      if (localStorage.getItem("mst_internal_traffic") === "1") return;
+    } catch {
+      /* Storage may be disabled. */
+    }
+    visitId.current ||= crypto.randomUUID();
+    const body = {
+      v: 1,
+      eventId: visitId.current,
+      tool: active?.slug || "directory",
+      source: submissionSource(),
+      traffic:
+        new URL(location.href).searchParams.get("mst_analytics_test") === "1" ||
+        navigator.webdriver
+          ? "test"
+          : "browser",
+    };
+    void fetch("/tools-api/v1/visits", {
+      method: "POST",
+      credentials: "omit",
+      cache: "no-store",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      keepalive: true,
+    })
+      .then((response) => response.arrayBuffer())
+      .catch(() => {});
+  }, [active?.slug]);
+
   return (
     <>
       <a className="skip-link" href="#main">
@@ -89,14 +135,14 @@ export function App({ path }: { path: string }) {
             {drawing
               ? "Processed on MST servers"
               : active
-                ? "Runs on your device"
+                ? "Runs on your device; privately saved"
                 : "Free engineering tools"}
             <br />
             <small>
               {drawing
                 ? "No sign-in. Private retained files."
                 : active
-                  ? "No sign-in. No file upload."
+                  ? "Inputs, files and results retained."
                   : "Processing details on each tool."}
             </small>
           </span>
@@ -108,27 +154,32 @@ export function App({ path }: { path: string }) {
             aria-busy={!ready}
             aria-label={`${active.name} controls`}
           >
-            {active.slug === "line-list-check" ? (
-              <LineListTool />
-            ) : active.slug === "delivery-package-check" ? (
-              <DeliveryPackageTool />
-            ) : drawing ? (
-              <DrawingToBom />
-            ) : compare ? (
-              <BomCompare />
-            ) : active.slug === "bom-model-check" ? (
-              <BomModelTool />
-            ) : active.slug === "connection-table-check" ? (
-              <ConnectionTableTool />
-            ) : active.slug === "bom-check" ? (
-              <BomCheckTool />
-            ) : active.slug === "drawing-register-compare" ? (
-              <RegisterCompare />
-            ) : active.slug === "title-block-reader" ? (
-              <TitleTool />
-            ) : (
-              <PidTool />
-            )}
+            <RetainedSubmission
+              key={active.slug}
+              tool={active.slug as SubmissionTool}
+            >
+              {active.slug === "line-list-check" ? (
+                <LineListTool />
+              ) : active.slug === "delivery-package-check" ? (
+                <DeliveryPackageTool />
+              ) : drawing ? (
+                <DrawingToBom />
+              ) : compare ? (
+                <BomCompare />
+              ) : active.slug === "bom-model-check" ? (
+                <BomModelTool />
+              ) : active.slug === "connection-table-check" ? (
+                <ConnectionTableTool />
+              ) : active.slug === "bom-check" ? (
+                <BomCheckTool />
+              ) : active.slug === "drawing-register-compare" ? (
+                <RegisterCompare />
+              ) : active.slug === "title-block-reader" ? (
+                <TitleTool />
+              ) : (
+                <PidTool />
+              )}
+            </RetainedSubmission>
           </fieldset>
         ) : (
           <ToolDirectory />
@@ -142,8 +193,8 @@ export function App({ path }: { path: string }) {
             {drawing
               ? "Drawing to BOM uploads to MST GPU servers using PaddleOCR. Original files, results and associated usage records are private. Files are kept until you or an MST administrator delete them. Files are not used for model training."
               : active
-                ? "Your selected files stay in browser memory. Refreshing clears them. Tool assets load from this website; no document content is sent to a server."
-                : "Drawing to BOM uses private GPU processing and file storage. Other tools process files on your device. Each tool explains its processing and deletion policy."}
+                ? "Running a tool saves its inputs, original attachments and browser-reported results privately with MST until active deletion. MST administrators can review the records. Files are not used for model training."
+                : "Drawing to BOM uses private GPU processing and file storage. Other tools analyze files on your device and save submitted inputs, originals and results privately. Each tool explains its processing and deletion policy."}
           </p>
         </div>
         <div>
