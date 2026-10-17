@@ -89,3 +89,28 @@ if UUID usage or spreadsheet import paths change. Job tokens use Web Crypto.
 Cloudflare references: [route matching](https://developers.cloudflare.com/workers/configuration/routing/routes/),
 [fail-closed limits](https://developers.cloudflare.com/workers/platform/limits/#daily-requests),
 [Wrangler configuration](https://developers.cloudflare.com/workers/wrangler/configuration/).
+
+## Public handbook and static cache policy
+
+The edge worker also serves an exact allowlist of public handbook documents
+from the trusted child static release: `/tools/handbook` (mapped to the trailing
+slash), `/tools/handbook/`, `/tools/handbook/index.html`, and the drawing-BOM lab's
+`handbook.html`, `drawing-bom-lab.zip` and `SHA256SUMS`. Configure Cloudflare
+routes for those public paths; the worker rejects all unlisted paths. It never
+forwards visitor query parameters, cookies, authorization or request bodies,
+and refuses upstream redirects or unexpected content types. These documents
+stay `no-store`, including their offline download copies. Deploy the child
+artifact before activating the document routes. Preserve the previous worker
+and route inventory for rollback; never serve this correction from the legacy
+host.
+
+Only `/tools/assets/<name>-<eight-character-content-hash>.js` and `.css` with
+HTTP200/206/304 receive `public, max-age=31536000, immutable`. HTML, missing
+assets, unversioned models and all private API responses remain `no-store`.
+The cache map changes no security headers or API authorization. Verify the
+actual template with `python3 scripts/check-us-cache.py` (requires Nginx).
+Before a shared gateway reload, retain the existing complete configuration
+hashes and backup, validate the staged file with `nginx -t`, and coordinate the
+reload with the other services' owner. Check the public cache headers, private
+no-store responses and unchanged neighboring hosts after activation. Rollback
+uses the exact saved configuration and another validated reload.
