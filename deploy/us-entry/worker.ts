@@ -23,6 +23,31 @@ const introductions: Record<string, { description: string; handbook: string }> =
       handbook: "duplicates",
     },
   };
+// Public documentation only. This is not a general proxy or private API route.
+const documents: Record<
+  string,
+  { path: string; type: string; upstreamType?: string }
+> = {
+  "/tools/handbook": { path: "/tools/handbook/", type: "text/html" },
+  "/tools/handbook/": { path: "/tools/handbook/", type: "text/html" },
+  "/tools/handbook/index.html": {
+    path: "/tools/handbook/index.html",
+    type: "text/html",
+  },
+  "/tools/labs/drawing-bom/handbook.html": {
+    path: "/tools/labs/drawing-bom/handbook.html",
+    type: "text/html",
+  },
+  "/tools/labs/drawing-bom/drawing-bom-lab.zip": {
+    path: "/tools/labs/drawing-bom/drawing-bom-lab.zip",
+    type: "application/zip",
+  },
+  "/tools/labs/drawing-bom/SHA256SUMS": {
+    path: "/tools/labs/drawing-bom/SHA256SUMS",
+    type: "text/plain",
+    upstreamType: "application/octet-stream",
+  },
+};
 function source(url: URL, request: Request) {
   const label = (url.searchParams.get("utm_source") || "").toLowerCase();
   if (["google", "bing", "github"].includes(label)) return label;
@@ -54,6 +79,7 @@ function source(url: URL, request: Request) {
 }
 // This route is an edge-owned shell. It never fetches the legacy website,
 // receives files, reads request bodies, or handles private job capabilities.
+// Its fixed public document routes read only the trusted static release.
 export default {
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
@@ -70,6 +96,55 @@ export default {
       "Referrer-Policy": "no-referrer",
       "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
     };
+    if (url.origin !== "https://mst-us.ai" || url.pathname.includes("%"))
+      return new Response("Not found", { status: 404, headers });
+    const document = Object.hasOwn(documents, url.pathname)
+      ? documents[url.pathname]
+      : undefined;
+    if (document) {
+      if (!["GET", "HEAD"].includes(request.method))
+        return new Response("Method not allowed", {
+          status: 405,
+          headers: { ...headers, Allow: "GET, HEAD" },
+        });
+      const documentHeaders = {
+        ...headers,
+        "Content-Type":
+          document.type +
+          (document.type.startsWith("text/") ? "; charset=utf-8" : ""),
+        "Content-Security-Policy":
+          "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+      };
+      try {
+        // Do not forward the visitor's query, cookies, authorization or headers.
+        // Redirects fail closed, even if the trusted origin is misconfigured.
+        const upstream = await fetch(
+          "https://tools.mst-us.ai" + document.path,
+          {
+            method: request.method,
+            headers: { Accept: document.type },
+            redirect: "error",
+            signal: AbortSignal.timeout(15000),
+          },
+        );
+        if (
+          upstream.status !== 200 ||
+          upstream.headers.get("Content-Type")?.split(";")[0].trim() !==
+            (document.upstreamType || document.type)
+        ) {
+          await upstream.body?.cancel();
+          throw new Error("Public document unavailable");
+        }
+        return new Response(request.method === "HEAD" ? null : upstream.body, {
+          headers: documentHeaders,
+        });
+      } catch {
+        return new Response(
+          "The handbook is temporarily unavailable. Please retry.",
+          { status: 503, headers },
+        );
+      }
+    }
     const match = /^\/tools\/([a-z0-9-]+)(?:\/|\/index\.html)?$/.exec(
       url.pathname,
     );
@@ -110,6 +185,11 @@ export default {
 <style>html,body{margin:0;width:100%;height:100%;background:#f6f8fa}iframe{display:block;width:100%;height:100vh;height:100dvh;border:0}noscript{display:block;padding:1rem;font:16px system-ui}${introStyle}</style>
 </head><body${introduction ? ' class="tool-entry"' : ""}>${introHtml}<iframe title="MST ${title}" src="https://tools.mst-us.ai/tools/${slug}/${query}" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-downloads allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"></iframe>
 <noscript>Enable JavaScript to run the tool and save your private record.</noscript></body></html>`;
-    return new Response(request.method === "HEAD" ? null : html, { headers });
+    return new Response(request.method === "HEAD" ? null : html, {
+      headers: {
+        ...headers,
+        Link: "<https://tools.mst-us.ai>; rel=preconnect",
+      },
+    });
   },
 };

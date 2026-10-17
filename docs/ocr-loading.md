@@ -1,3 +1,5 @@
+> Historical browser-OCR loading specification. Drawing to BOM now uses GPU processing, and all ten tools retain explicitly submitted originals/results; the current contract is [private tool records](private-tool-records.md). Historical no-upload acceptance below applies only to the former implementation.
+
 # Issue 11 — recover a stalled OCR component download
 
 ## Evidence and scope
