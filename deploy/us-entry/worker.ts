@@ -123,7 +123,9 @@ export default {
           {
             method: request.method,
             headers: { Accept: document.type },
-            redirect: "error",
+            // Workerd supports manual redirects, but not redirect: "error".
+            // The status check below rejects every redirect without following it.
+            redirect: "manual",
             signal: AbortSignal.timeout(15000),
           },
         );
