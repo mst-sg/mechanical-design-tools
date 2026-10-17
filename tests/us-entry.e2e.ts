@@ -117,7 +117,28 @@ test("US root shell isolates uploads and recovery in its child origin and downlo
     });
     const publicUrl = root + "/tools/drawing-to-bom/?mst_analytics_test=1";
     await page.goto(publicUrl);
+    await expect(
+      page.getByRole("heading", { name: "Drawing to BOM", level: 1 }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "How to use this tool" }),
+    ).toHaveAttribute(
+      "href",
+      "/tools/handbook/?mst_analytics_test=1#drawing-bom",
+    );
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
     const tool = page.frameLocator('iframe[title="MST Drawing to BOM"]');
+    await expect(
+      tool.getByRole("button", { name: "Try a sample", exact: true }),
+    ).toBeVisible();
+    await page.screenshot({
+      path: `.artifacts/${info.project.name}-us-entry-intro.png`,
+      fullPage: true,
+    });
     await tool
       .getByRole("button", { name: "Try a sample", exact: true })
       .click();
