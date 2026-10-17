@@ -10,6 +10,19 @@ const entries: Record<string, string> = {
   "pid-tag-check": "P&ID Tag Check",
   "title-block-reader": "Title Block Reader",
 };
+const introductions: Record<string, { description: string; handbook: string }> =
+  {
+    "drawing-to-bom": {
+      description:
+        "Read an existing parts table from a PNG, JPEG or PDF. Review the rows and export Excel or CSV.",
+      handbook: "drawing-bom",
+    },
+    "bom-check": {
+      description:
+        "Check a BOM CSV for duplicate part numbers, missing quantities and conflicting fields. Review the findings and export a checked CSV.",
+      handbook: "duplicates",
+    },
+  };
 function source(url: URL, request: Request) {
   const label = (url.searchParams.get("utm_source") || "").toLowerCase();
   if (["google", "bing", "github"].includes(label)) return label;
@@ -76,13 +89,26 @@ export default {
     params.set("mst_source", source(url, request));
     const query = "?" + params.toString().replaceAll("&", "&amp;");
     const title = entries[slug].replaceAll("&", "&amp;");
+    const introduction = introductions[slug];
+    const description =
+      introduction?.description ||
+      "Use MST engineering tools with private input, original attachment and result storage.";
+    const guideQuery = params.has("mst_analytics_test")
+      ? "?mst_analytics_test=1"
+      : "";
+    const introHtml = introduction
+      ? `<header class="entry-intro"><h1>${title}</h1><p>${description} <a href="/tools/handbook/${guideQuery}#${introduction.handbook}">How to use this tool</a></p></header>`
+      : "";
+    const introStyle = introduction
+      ? ".tool-entry{display:flex;flex-direction:column;height:100vh;height:100dvh}.entry-intro{flex:none;padding:12px 24px;border-bottom:1px solid #d8e0e7;background:#fff;color:#24312b;font:15px/1.5 system-ui,sans-serif}.entry-intro h1{margin:0 0 3px;font-size:20px;line-height:1.3}.entry-intro p{margin:0}.entry-intro a{color:#325b43;text-underline-offset:3px}.entry-intro a:focus-visible{outline:2px solid #325b43;outline-offset:3px}.tool-entry iframe{flex:1;min-height:0}@media(max-width:600px){.entry-intro{padding:10px 16px}}"
+      : "";
     const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${title} — MST Engineering Tools</title>
-<meta name="description" content="Use MST engineering tools with private input, original attachment and result storage.">
+<meta name="description" content="${description}">
 <link rel="canonical" href="https://mst-us.ai/tools/${slug}/">
-<style>html,body{margin:0;width:100%;height:100%;background:#f6f8fa}iframe{display:block;width:100%;height:100vh;height:100dvh;border:0}noscript{display:block;padding:1rem;font:16px system-ui}</style>
-</head><body><iframe title="MST ${title}" src="https://tools.mst-us.ai/tools/${slug}/${query}" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-downloads allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"></iframe>
+<style>html,body{margin:0;width:100%;height:100%;background:#f6f8fa}iframe{display:block;width:100%;height:100vh;height:100dvh;border:0}noscript{display:block;padding:1rem;font:16px system-ui}${introStyle}</style>
+</head><body${introduction ? ' class="tool-entry"' : ""}>${introHtml}<iframe title="MST ${title}" src="https://tools.mst-us.ai/tools/${slug}/${query}" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-downloads allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"></iframe>
 <noscript>Enable JavaScript to run the tool and save your private record.</noscript></body></html>`;
     return new Response(request.method === "HEAD" ? null : html, { headers });
   },

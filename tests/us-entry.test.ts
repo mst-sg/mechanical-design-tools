@@ -2,6 +2,51 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import entry from "../deploy/us-entry/worker";
 
+test("the two primary entries describe their task and link to a handbook without running the child", async () => {
+  for (const [slug, heading, purpose, section] of [
+    [
+      "drawing-to-bom",
+      "Drawing to BOM",
+      /parts table.*PNG, JPEG or PDF.*review.*Excel or CSV/i,
+      "drawing-bom",
+    ],
+    [
+      "bom-check",
+      "BOM CSV Checker",
+      /BOM CSV.*duplicate part numbers.*missing quantities.*conflicting fields.*review.*export/i,
+      "duplicates",
+    ],
+  ] as const) {
+    for (const qa of [false, true]) {
+      const response = await entry.fetch(
+        new Request(
+          `https://mst-us.ai/tools/${slug}/?token=PRIVATE_SENTINEL${qa ? "&mst_analytics_test=1" : ""}`,
+        ),
+      );
+      const html = await response.text();
+      assert.equal(response.status, 200);
+      assert.equal((html.match(/<h1>/g) || []).length, 1);
+      assert.ok(html.includes(`<h1>${heading}</h1>`));
+      const description = html.match(
+        /<meta name="description" content="([^"]+)"/,
+      )?.[1];
+      assert.match(description || "", purpose);
+      assert.ok(html.includes(`<p>${description}`));
+      assert.ok(
+        html.includes(
+          `href="/tools/handbook/${qa ? "?mst_analytics_test=1" : ""}#${section}"`,
+        ),
+      );
+      assert.ok(
+        html.includes(
+          `rel="canonical" href="https://mst-us.ai/tools/${slug}/"`,
+        ),
+      );
+      assert.doesNotMatch(html, /PRIVATE_SENTINEL|<script|postMessage/);
+    }
+  }
+});
+
 test("US entry stays on root URL and hosts only the separate private tool origin", async () => {
   for (const path of ["", "/", "/index.html"]) {
     const response = await entry.fetch(
