@@ -238,11 +238,15 @@ export function RetainedSubmission({
     [message, setMessage] = useState(""),
     [error, setError] = useState(""),
     [saved, setSaved] = useState<JobAccess | null>(null),
-    [record, setRecord] = useState<unknown>(null);
+    [record, setRecord] = useState<unknown>(null),
+    [deleteTarget, setDeleteTarget] = useState<JobAccess | null>(null),
+    [deleteError, setDeleteError] = useState("");
   const pending = useRef<Pending | null>(null),
-    running = useRef(false);
+    running = useRef(false),
+    deleteButton = useRef<HTMLButtonElement>(null);
   async function persist(p: Pending) {
     await upload(p);
+    setDeleteTarget(null);
     setSaved(p.access);
     setMessage(`Saved privately with MST. Record ${p.access.id}.`);
     setError("");
@@ -256,6 +260,7 @@ export function RetainedSubmission({
     if (running.current)
       throw new Error("Wait for the current save to finish.");
     running.current = true;
+    setDeleteTarget(null);
     setBusy(false);
     setError("");
     setSaved(null);
@@ -309,6 +314,10 @@ export function RetainedSubmission({
     }
   }
   async function view(access: JobAccess) {
+    if (running.current) return;
+    running.current = true;
+    setBusy(true);
+    setDeleteTarget(null);
     try {
       const value = await (await request(access, "/record")).json();
       setRecord(value);
@@ -318,6 +327,9 @@ export function RetainedSubmission({
       setError(
         e instanceof Error ? e.message : "The private record could not load.",
       );
+    } finally {
+      running.current = false;
+      setBusy(false);
     }
   }
   async function importReceipt(file: File) {
@@ -359,32 +371,41 @@ export function RetainedSubmission({
     }
   }
   async function erase() {
+    const access = deleteTarget;
     if (
+      running.current ||
+      !access ||
       !saved ||
-      !window.confirm(
-        "Delete this private record, its inputs, results and original attachments from MST storage?",
-      )
+      access.id !== saved.id ||
+      access.token !== saved.token
     )
       return;
+    running.current = true;
+    setBusy(true);
+    setDeleteError("");
     try {
-      await request(saved, "", { method: "DELETE" });
+      await request(access, "", { method: "DELETE" });
       try {
         localStorage.setItem(
           historyKey,
-          JSON.stringify(history().filter((x) => x.access.id !== saved.id)),
+          JSON.stringify(history().filter((x) => x.access.id !== access.id)),
         );
       } catch {
         /* Server deletion remains authoritative. */
       }
-      if (pending.current?.access.id === saved.id) pending.current = null;
+      if (pending.current?.access.id === access.id) pending.current = null;
+      setDeleteTarget(null);
       setSaved(null);
       setRecord(null);
       setMessage("The private record and its attachments were deleted.");
       setError("");
     } catch (e) {
-      setError(
+      setDeleteError(
         e instanceof Error ? e.message : "The record could not be deleted.",
       );
+    } finally {
+      running.current = false;
+      setBusy(false);
     }
   }
   const savedFiles =
@@ -525,12 +546,51 @@ export function RetainedSubmission({
         )}
         {saved && (
           <button
+            ref={deleteButton}
             className="text-button"
             disabled={busy}
-            onClick={() => void erase()}
+            onClick={() => {
+              setDeleteError("");
+              setDeleteTarget(saved);
+            }}
           >
             Delete this private record
           </button>
+        )}
+        {deleteTarget && deleteTarget.id === saved?.id && (
+          <div
+            className="notice"
+            role="group"
+            aria-label="Delete private record"
+          >
+            <p>
+              Permanently delete this record, its inputs, results and original
+              attachments from MST storage? This cannot be undone.
+            </p>
+            {deleteError && (
+              <p className="notice error" role="alert">
+                {deleteError}
+              </p>
+            )}
+            <button
+              className="button secondary"
+              autoFocus
+              disabled={busy}
+              onClick={() => {
+                setDeleteTarget(null);
+                deleteButton.current?.focus();
+              }}
+            >
+              Cancel
+            </button>{" "}
+            <button
+              className="button primary"
+              disabled={busy}
+              onClick={() => void erase()}
+            >
+              {busy ? "Deleting…" : "Delete permanently"}
+            </button>
+          </div>
         )}
         {!!record && (
           <>
