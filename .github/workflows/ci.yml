@@ -27,6 +27,7 @@ jobs:
       - run: npm run build:gateway
       - run: npm run build:us-gateway
       - run: npm run build:us-entry
+      - run: python3 scripts/check-us-entry-runtime.py
       - run: npm test
       - run: npm run test:e2e -- --reporter=list,github,html
       - uses: actions/upload-artifact@v4

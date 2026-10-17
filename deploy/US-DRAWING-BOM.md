@@ -98,7 +98,13 @@ slash), `/tools/handbook/`, `/tools/handbook/index.html`, and the drawing-BOM la
 `handbook.html`, `drawing-bom-lab.zip` and `SHA256SUMS`. Configure Cloudflare
 routes for those public paths; the worker rejects all unlisted paths. It never
 forwards visitor query parameters, cookies, authorization or request bodies,
-and refuses upstream redirects or unexpected content types. These documents
+and refuses upstream redirects or unexpected content types. Workerd requires
+`redirect: "manual"`; the entry rejects every non-200 response without following
+its Location. After `npm run build:us-entry`, run
+`python3 scripts/check-us-entry-runtime.py` against the pinned Workerd runtime.
+This loopback HTTP check covers six documents with GET/HEAD, stripped visitor
+credentials/query, and a 302 that must produce only one upstream request.
+These documents
 stay `no-store`, including their offline download copies. Deploy the child
 artifact before activating the document routes. Preserve the previous worker
 and route inventory for rollback; never serve this correction from the legacy
