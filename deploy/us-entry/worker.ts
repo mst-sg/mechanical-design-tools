@@ -28,6 +28,41 @@ const introductions: Record<string, { description: string; handbook: string }> =
         "Check a BOM CSV for duplicate part numbers, missing quantities and conflicting fields. Review the findings and export a checked CSV.",
       handbook: "duplicates",
     },
+    "drawing-register-compare": {
+      description:
+        "Find added, removed and changed drawing sheets by drawing number and sheet. Compare revision labels and export a review list.",
+      handbook: "register",
+    },
+    "connection-table-check": {
+      description:
+        "Compare a connection table with reviewed P&ID tags and optional BOM assignments. Find missing endpoints, repeated pairs and unmapped tags. Export source-record findings.",
+      handbook: "connections",
+    },
+    "line-list-check": {
+      description:
+        "Compare a line list with reviewed P&ID records. Find missing line numbers, duplicate identities and differences in endpoints, size, piping class or service. Review and export CSV.",
+      handbook: "line-lists",
+    },
+    "bom-model-check": {
+      description:
+        "Match a BOM to model filenames and declared revisions. Find missing mappings, conflicting versions and files absent from your selection. Export a review list.",
+      handbook: "models",
+    },
+    "delivery-package-check": {
+      description:
+        "Check a drawing delivery manifest against selected local files. Find missing PDFs or STEP files, empty files and ambiguous names. Review and export the findings.",
+      handbook: "delivery-package",
+    },
+    "pid-tag-check": {
+      description:
+        "Read and review printed P&ID tag text, then compare it with your equipment or instrument list. Export unmatched tags.",
+      handbook: "tags",
+    },
+    "title-block-reader": {
+      description:
+        "Read drawing numbers, titles and revisions from a title block. Check each sheet and export a drawing register.",
+      handbook: "register",
+    },
   };
 const escapeHtml = (text: string) =>
   text
@@ -260,7 +295,7 @@ export default {
     );
     const pageTitle = page
       ? escapeHtml(page.seoTitle)
-      : `${title} — MST Engineering Tools`;
+      : `${title} | MST`;
     const guideQuery = params.has("mst_analytics_test")
       ? "?mst_analytics_test=1"
       : "";
