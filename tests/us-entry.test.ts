@@ -2,6 +2,11 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import entry from "../deploy/us-entry/worker";
 import { createServer } from "node:http";
+import { toolPages } from "../deploy/us-entry/page-content";
+
+// The only script allowed in the shell is an inert JSON-LD data block.
+const withoutJsonLd = (html: string) =>
+  html.replace(/<script type="application\/ld\+json">[^<]*<\/script>/g, "");
 
 test("the two primary entries describe their task and link to a handbook without running the child", async () => {
   for (const [slug, heading, purpose, section] of [
@@ -10,6 +15,12 @@ test("the two primary entries describe their task and link to a handbook without
       "Drawing to BOM",
       /parts table.*PNG, JPEG or PDF.*review.*Excel or CSV/i,
       "drawing-bom",
+    ],
+    [
+      "bom-compare",
+      "BOM Compare",
+      /two CSV or TSV BOM revisions.*part number.*added, removed and changed.*export.*CSV/i,
+      "revisions",
     ],
     [
       "bom-check",
@@ -43,8 +54,80 @@ test("the two primary entries describe their task and link to a handbook without
           `rel="canonical" href="https://mst-us.ai/tools/${slug}/"`,
         ),
       );
-      assert.doesNotMatch(html, /PRIVATE_SENTINEL|<script|postMessage/);
+      assert.doesNotMatch(
+        withoutJsonLd(html),
+        /PRIVATE_SENTINEL|<script|postMessage/,
+      );
+      assert.doesNotMatch(html, /PRIVATE_SENTINEL/);
     }
+  }
+});
+
+test("free tool pages carry a useful guide, FAQ text that matches FAQPage JSON-LD, and no unsupported claims", async () => {
+  for (const [slug, keyword] of [
+    ["drawing-to-bom", "Drawing to BOM"],
+    ["bom-compare", "BOM Compare"],
+  ] as const) {
+    const response = await entry.fetch(
+      new Request(`https://mst-us.ai/tools/${slug}/`),
+    );
+    assert.equal(response.status, 200);
+    assert.match(
+      response.headers.get("Content-Security-Policy")!,
+      /default-src 'none'/,
+    );
+    const html = await response.text();
+    const page = toolPages[slug];
+    assert.ok(html.startsWith("<!doctype html>"));
+    assert.ok(
+      html.includes(`<title>${page.seoTitle}</title>`) &&
+        page.seoTitle.startsWith(keyword),
+    );
+    assert.ok(page.seoTitle.length <= 70, "title fits a search result");
+    assert.ok(page.description.length <= 160, "meta fits a search result");
+    assert.equal((html.match(/<h1>/g) || []).length, 1);
+    assert.ok(html.includes('<meta property="og:title"'));
+    const blocks = [
+      ...html.matchAll(
+        /<script type="application\/ld\+json">([^<]*)<\/script>/g,
+      ),
+    ];
+    assert.equal(blocks.length, 1);
+    assert.equal((html.match(/<script/g) || []).length, 1);
+    const graph = JSON.parse(blocks[0][1])["@graph"];
+    const faq = graph.find(
+      (n: { "@type": string }) => n["@type"] === "FAQPage",
+    );
+    assert.equal(faq.mainEntity.length, page.faq.length);
+    assert.ok(page.faq.length >= 6);
+    for (const item of faq.mainEntity) {
+      const question = item.name.replaceAll("&", "&amp;");
+      assert.ok(html.includes(`<h3>${question}</h3>`), item.name);
+      assert.ok(
+        html.includes(
+          `<p>${item.acceptedAnswer.text.replaceAll("&", "&amp;")}</p>`,
+        ),
+        item.name,
+      );
+    }
+    const app = graph.find(
+      (n: { "@type": string }) => n["@type"] === "SoftwareApplication",
+    );
+    assert.equal(app.offers.price, "0");
+    const words = html.replace(/<[^>]+>/g, " ").split(/\s+/).length;
+    assert.ok(words > 600, `${slug} has ${words} words`);
+    // Positioning guard: this is never described as P&ID-to-3D or Revit output.
+    assert.doesNotMatch(html, /Revit|P&amp;ID to 3D|P&ID to 3D/i);
+    // Only the formats the tool actually reads are listed.
+    if (slug === "drawing-to-bom") {
+      assert.match(html, /PNG, JPEG and PDF/);
+      assert.match(html, /25 MB/);
+    } else {
+      assert.match(html, /CSV and TSV/);
+      assert.match(html, /4 MB/);
+    }
+    assert.match(html, /href="\/product\/"/);
+    assert.match(html, /mechanical assembly AI/);
   }
 });
 
@@ -67,7 +150,7 @@ test("US entry stays on root URL and hosts only the separate private tool origin
     );
     assert.match(html, /allow-same-origin allow-downloads/);
     assert.doesNotMatch(
-      html,
+      withoutJsonLd(html),
       /PRIVATE_TOKEN_SENTINEL|example.invalid|mst-sg|<script|postMessage|<input/i,
     );
     assert.match(
@@ -125,7 +208,7 @@ test("all ten exact tools use the trusted child and only bounded attribution cro
       ),
     );
     assert.doesNotMatch(
-      body,
+      withoutJsonLd(body),
       /PRIVATE_EMAIL_SENTINEL|SECRET_TOKEN_SENTINEL|<script|postMessage/,
     );
     assert.equal(

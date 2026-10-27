@@ -1,0 +1,24 @@
+{
+  "name": "mst-us-seo-edge",
+  "main": "worker.ts",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": false,
+  "preview_urls": false,
+  "observability": {
+    "enabled": false
+  },
+  "routes": [
+    {
+      "pattern": "mst-us.ai/robots.txt",
+      "zone_name": "mst-us.ai"
+    },
+    {
+      "pattern": "mst-us.ai/2d-cad-to-3d-model-generation/",
+      "zone_name": "mst-us.ai"
+    },
+    {
+      "pattern": "mst-us.ai/product/",
+      "zone_name": "mst-us.ai"
+    }
+  ]
+}
