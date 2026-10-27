@@ -29,6 +29,7 @@ import { visitorContext } from "./visitor-context";
 import { latestReviewed, saveReviewed } from "./reviewed-results";
 import { operatorRequest } from "./operator";
 import { recordToolVisit } from "./tool-visits";
+import { recordUsageBeacon, usageOrigin } from "./usage-daily";
 
 class HttpError extends Error {
   constructor(
@@ -274,6 +275,8 @@ export function createJobService(config: Config) {
         throw new HttpError(403, "forbidden");
       if (path === "/tools-api/v1/visits")
         return await recordToolVisit(store, req, res);
+      if (path === "/tools-api/v1/usage")
+        return await recordUsageBeacon(store, req, res);
       if (await submissions.handle(req, res, path, closing)) return;
       const match =
         /^\/tools-api\/v1\/jobs\/([a-f0-9-]+)(?:\/(result(?:\.csv)?|reviewed|shown|exported|cancel))?$/.exec(
@@ -358,6 +361,15 @@ export function createJobService(config: Config) {
           store.db
             .prepare("INSERT INTO visitor_context VALUES(?,?)")
             .run(id, JSON.stringify(visitorContext(req, config)));
+          const origin = usageOrigin(store, req, ip, {
+            tool: "drawing-to-bom",
+            filename: context.filename,
+            bytes: size,
+            hasEmail: !!context.contactEmail,
+            traffic: options.traffic,
+          });
+          store.usageOriginSet(id, origin);
+          store.usageBump(origin, "start");
           await pipeline(
             req,
             limiter,

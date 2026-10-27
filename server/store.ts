@@ -24,6 +24,21 @@ import type {
   UploadContext,
 } from "../src/job-types";
 import { errors, type Config } from "./config";
+import type { UsageAction, UsageOrigin } from "./usage-daily";
+
+// Asia/Shanghai day, matching every other daily table.
+const usageDay = (now: number) =>
+  new Date(now + 8 * 3600_000).toISOString().slice(0, 10);
+// Job lifecycle events that are one-to-one with usage actions. Start is counted
+// when the upload is accepted (see app.ts). "empty" is a
+// completed run that found no rows; cancelled runs are neither success nor fail.
+const jobUsage: Record<string, UsageAction> = {
+  succeeded: "success",
+  empty: "success",
+  failed: "fail",
+  timed_out: "fail",
+  exported: "export",
+};
 export type Job = {
   id: string;
   token_hash: string;
@@ -80,6 +95,15 @@ export class JobStore {
       CREATE TABLE IF NOT EXISTS visitor_counters (
         day TEXT,tool TEXT,source TEXT,traffic TEXT,language TEXT,country TEXT,country_source TEXT,count INTEGER,
         PRIMARY KEY(day,tool,source,traffic,language,country,country_source));
+      CREATE TABLE IF NOT EXISTS usage_origin (
+        id TEXT PRIMARY KEY, day TEXT NOT NULL, tool TEXT NOT NULL, country TEXT NOT NULL,
+        net24 TEXT NOT NULL, ext TEXT NOT NULL, size TEXT NOT NULL, email TEXT NOT NULL,
+        internal INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS usage_daily (
+        day TEXT NOT NULL, tool TEXT NOT NULL, action TEXT NOT NULL, country TEXT NOT NULL,
+        net24 TEXT NOT NULL, ext TEXT NOT NULL, size TEXT NOT NULL, email TEXT NOT NULL,
+        internal INTEGER NOT NULL, count INTEGER NOT NULL,
+        PRIMARY KEY(day,tool,action,country,net24,ext,size,email,internal));
       CREATE TABLE IF NOT EXISTS visitor_dropped (day TEXT PRIMARY KEY,count INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS visitor_context (
         job_id TEXT PRIMARY KEY REFERENCES jobs(id) ON DELETE CASCADE, value TEXT NOT NULL);
@@ -165,6 +189,28 @@ export class JobStore {
         value.referrerHost,
         userAgent.replace(/[\u0000-\u001f\u007f]/g, "").slice(0, 256),
       );
+  }
+  // Derived, non-identifying attributes captured at upload so later lifecycle
+  // events (no request, no address) can be counted in usage_daily.
+  usageOriginSet(id: string, o: UsageOrigin, now = Date.now()) {
+    this.db
+      .prepare(
+        "INSERT OR IGNORE INTO usage_origin VALUES(?,?,?,?,?,?,?,?,?)",
+      )
+      .run(id, usageDay(now), o.tool, o.country, o.net24, o.ext, o.size, o.email, o.internal);
+  }
+  usageBump(o: UsageOrigin, action: UsageAction, now = Date.now()) {
+    this.db
+      .prepare(
+        "INSERT INTO usage_daily VALUES(?,?,?,?,?,?,?,?,?,1) ON CONFLICT(day,tool,action,country,net24,ext,size,email,internal) DO UPDATE SET count=count+1",
+      )
+      .run(usageDay(now), o.tool, action, o.country, o.net24, o.ext, o.size, o.email, o.internal);
+  }
+  usageFor(id: string, action: UsageAction, now = Date.now()) {
+    const o = this.db.prepare("SELECT * FROM usage_origin WHERE id=?").get(id) as
+      | UsageOrigin
+      | undefined;
+    if (o) this.usageBump(o, action, now);
   }
   sourceDigest(id: string, digest: string) {
     this.db
@@ -345,6 +391,8 @@ export class JobStore {
       const inserted = this.db
         .prepare("INSERT OR IGNORE INTO events VALUES(?,?)")
         .run(id, event);
+      if (inserted.changes && jobUsage[event])
+        this.usageFor(id, jobUsage[event], now);
       if (inserted.changes)
         this.db
           .prepare(
@@ -392,6 +440,9 @@ export class JobStore {
     this.db
       .prepare("DELETE FROM metrics WHERE day<?")
       .run(new Date(now - 180 * 86400_000).toISOString().slice(0, 10));
+    const old = new Date(now - 400 * 86400_000).toISOString().slice(0, 10);
+    this.db.prepare("DELETE FROM usage_daily WHERE day<?").run(old);
+    this.db.prepare("DELETE FROM usage_origin WHERE day<?").run(old);
   }
   close() {
     this.db.close();

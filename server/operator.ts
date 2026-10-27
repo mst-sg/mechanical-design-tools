@@ -68,6 +68,31 @@ export async function operatorRequest(
     });
     return true;
   }
+  if (url.pathname === "/tools-operator/v1/usage-daily") {
+    const start = url.searchParams.get("start") || "",
+      end = url.searchParams.get("end") || "";
+    if (
+      !/^\d{4}-\d{2}-\d{2}$/.test(start) ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(end) ||
+      start > end ||
+      [...url.searchParams.keys()].some((k) => !["start", "end"].includes(k))
+    )
+      throw new SubmissionError(400, "invalid_query", "Use a date range.");
+    json({
+      schema: 1,
+      timezone: "UTC+08:00",
+      start,
+      end,
+      rows: store.db
+        .prepare(
+          "SELECT day,tool,action,country,net24,ext,size,email,internal,count FROM usage_daily WHERE day>=? AND day<=? ORDER BY day,tool,action,country,net24,ext,size,email,internal",
+        )
+        .all(start, end),
+      definition:
+        "Counters per day, tool and action. net24 is a keyed hash of the /24 (IPv4) or /48 (IPv6) network. internal=1 for test traffic, QA user agents and configured internal networks. No file names, contents, e-mail addresses or IP addresses.",
+    });
+    return true;
+  }
   if (url.pathname === "/tools-operator/v1/records") {
     if (
       [...url.searchParams.keys()].some(

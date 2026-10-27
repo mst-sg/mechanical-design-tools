@@ -11,6 +11,7 @@ import { ConnectionTableTool } from "./ConnectionTableTool";
 import { LineListTool } from "./LineListTool";
 import { DeliveryPackageTool } from "./DeliveryPackageTool";
 import { tools } from "./catalog";
+import { reportUsage } from "./usage";
 import { useEffect, useRef, useState } from "react";
 export function App({ path }: { path: string }) {
   const [ready, setReady] = useState(false);
@@ -62,6 +63,18 @@ export function App({ path }: { path: string }) {
       .then((response) => response.arrayBuffer())
       .catch(() => {});
   }, [active?.slug]);
+
+  useEffect(() => {
+    // One aggregate "select file" count per file-input selection.
+    const onChange = (event: Event) => {
+      const input = event.target;
+      if (!(input instanceof HTMLInputElement) || input.type !== "file") return;
+      const file = input.files?.[0];
+      if (file) reportUsage("select_file", file);
+    };
+    document.addEventListener("change", onChange, true);
+    return () => document.removeEventListener("change", onChange, true);
+  }, []);
 
   return (
     <>
