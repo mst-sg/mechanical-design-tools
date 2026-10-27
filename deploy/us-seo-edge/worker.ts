@@ -7,7 +7,7 @@
 const SITEMAP = "https://mst-us.ai/sitemap.xml";
 
 const DRAWING_TO_MODEL = {
-  title: "2D CAD to 3D Model Generation | Drawing to Model | MST AI Engineer",
+  title: "2D CAD to 3D Model Generation | Drawing to Model | MST",
   description:
     "MST AI Engineer\u2019s drawing-to-model module generates 3D models from 2D CAD drawings. See the workflow and the checks for geometry and editing.",
   oldTitle: "Create editable Revit families from 2D three-view drawings | MST",
