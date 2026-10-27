@@ -1,3 +1,4 @@
+import { toolPages, type Section, type ToolPage } from "./page-content";
 const entries: Record<string, string> = {
   "drawing-to-bom": "Drawing to BOM",
   "bom-compare": "BOM Compare",
@@ -17,12 +18,96 @@ const introductions: Record<string, { description: string; handbook: string }> =
         "Read an existing parts table from a PNG, JPEG or PDF. Review the rows and export Excel or CSV.",
       handbook: "drawing-bom",
     },
+    "bom-compare": {
+      description:
+        "Compare two BOM revisions by part number. Review added, removed and changed parts and export CSV.",
+      handbook: "revisions",
+    },
     "bom-check": {
       description:
         "Check a BOM CSV for duplicate part numbers, missing quantities and conflicting fields. Review the findings and export a checked CSV.",
       handbook: "duplicates",
     },
   };
+const escapeHtml = (text: string) =>
+  text
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+// JSON-LD is an inert data block: the browser never executes it, so the
+// shell's CSP (default-src 'none') still applies and no script can run.
+const jsonLd = (slug: string, page: ToolPage) =>
+  JSON.stringify({
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "SoftwareApplication",
+        name: page.applicationName,
+        applicationCategory: "BusinessApplication",
+        operatingSystem: "Web browser",
+        url: `https://mst-us.ai/tools/${slug}/`,
+        description: page.description,
+        isAccessibleForFree: true,
+        offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+        publisher: {
+          "@type": "Organization",
+          name: "MST",
+          url: "https://mst-us.ai/",
+        },
+      },
+      {
+        "@type": "FAQPage",
+        mainEntity: page.faq.map((item) => ({
+          "@type": "Question",
+          name: item.q,
+          acceptedAnswer: { "@type": "Answer", text: item.a },
+        })),
+      },
+    ],
+  }).replaceAll("<", "\\u003c");
+function renderSection(section: Section): string {
+  const head = `<section id="${section.id}"><h2>${escapeHtml(section.heading)}</h2>`;
+  if ("paragraphs" in section)
+    return (
+      head +
+      section.paragraphs.map((p) => `<p>${escapeHtml(p)}</p>`).join("") +
+      "</section>"
+    );
+  if ("io" in section)
+    return (
+      head +
+      "<dl>" +
+      section.io
+        .map(([k, v]) => `<dt>${escapeHtml(k)}</dt><dd>${escapeHtml(v)}</dd>`)
+        .join("") +
+      "</dl></section>"
+    );
+  const tag = section.ordered ? "ol" : "ul";
+  return (
+    head +
+    `<${tag}>` +
+    section.list.map((li) => `<li>${escapeHtml(li)}</li>`).join("") +
+    `</${tag}></section>`
+  );
+}
+function renderArticle(page: ToolPage): string {
+  return (
+    `<main class="entry-article" id="guide">` +
+    page.sections.map(renderSection).join("") +
+    `<section id="faq"><h2>Frequently asked questions</h2>` +
+    page.faq
+      .map(
+        (item) => `<h3>${escapeHtml(item.q)}</h3><p>${escapeHtml(item.a)}</p>`,
+      )
+      .join("") +
+    `</section><section id="related"><h2>Related</h2><ul>` +
+    page.related
+      .map((l) => `<li><a href="${l.href}">${escapeHtml(l.label)}</a></li>`)
+      .join("") +
+    `</ul></section><section id="about"><h2>About MST</h2><p>This is a free tool from MST. MST AI Engineer has three modules: drawing to model, layout and connections, and mechanical assembly AI, which takes a P&amp;ID gas-line diagram plus approved PDM parts and equipment rules and builds a native, editable SOLIDWORKS assembly, starting with semiconductor gas equipment. <a href="/product/">Learn about MST AI Engineer</a>.</p></section></main>`
+  );
+}
 // Public documentation only. This is not a general proxy or private API route.
 const documents: Record<
   string,
@@ -166,27 +251,43 @@ export default {
     params.set("mst_source", source(url, request));
     const query = "?" + params.toString().replaceAll("&", "&amp;");
     const title = entries[slug].replaceAll("&", "&amp;");
+    const page = Object.hasOwn(toolPages, slug) ? toolPages[slug] : undefined;
     const introduction = introductions[slug];
-    const description =
-      introduction?.description ||
-      "Use MST engineering tools with private input, original attachment and result storage.";
+    const description = escapeHtml(
+      page?.description ||
+        introduction?.description ||
+        "Use MST engineering tools with private input, original attachment and result storage.",
+    );
+    const pageTitle = page
+      ? escapeHtml(page.seoTitle)
+      : `${title} — MST Engineering Tools`;
     const guideQuery = params.has("mst_analytics_test")
       ? "?mst_analytics_test=1"
       : "";
     const introHtml = introduction
-      ? `<header class="entry-intro"><h1>${title}</h1><p>${description} <a href="/tools/handbook/${guideQuery}#${introduction.handbook}">How to use this tool</a></p></header>`
+      ? `<header class="entry-intro"><h1>${title}</h1><p>${description} <a href="/tools/handbook/${guideQuery}#${introduction.handbook}">How to use this tool</a>${page ? ' · <a href="#guide">Guide and FAQ</a>' : ""}</p></header>`
       : "";
+    const pageStyle =
+      ".tool-page{display:block;height:auto}.tool-page iframe{height:max(560px,calc(100vh - 100px));height:max(560px,calc(100dvh - 100px));min-height:0}.entry-article{box-sizing:border-box;max-width:860px;margin:0 auto;padding:32px 24px 56px;background:#fff;color:#24312b;font:16px/1.6 system-ui,sans-serif}.entry-article h2{margin:32px 0 8px;font-size:22px;line-height:1.3}.entry-article h2:first-child{margin-top:0}.entry-article h3{margin:20px 0 4px;font-size:17px}.entry-article p,.entry-article ul,.entry-article ol,.entry-article dd{margin:0 0 12px}.entry-article dt{font-weight:600;margin-top:8px}.entry-article dd{margin-left:0}.entry-article li{margin-bottom:6px}.entry-article a{color:#325b43;text-underline-offset:3px}@media(max-width:600px){.entry-article{padding:24px 16px 40px}}";
     const introStyle = introduction
-      ? ".tool-entry{display:flex;flex-direction:column;height:100vh;height:100dvh}.entry-intro{flex:none;padding:12px 24px;border-bottom:1px solid #d8e0e7;background:#fff;color:#24312b;font:15px/1.5 system-ui,sans-serif}.entry-intro h1{margin:0 0 3px;font-size:20px;line-height:1.3}.entry-intro p{margin:0}.entry-intro a{color:#325b43;text-underline-offset:3px}.entry-intro a:focus-visible{outline:2px solid #325b43;outline-offset:3px}.tool-entry iframe{flex:1;min-height:0}@media(max-width:600px){.entry-intro{padding:10px 16px}}"
+      ? ".tool-entry{display:flex;flex-direction:column;height:100vh;height:100dvh}.entry-intro{flex:none;padding:12px 24px;border-bottom:1px solid #d8e0e7;background:#fff;color:#24312b;font:15px/1.5 system-ui,sans-serif}.entry-intro h1{margin:0 0 3px;font-size:20px;line-height:1.3}.entry-intro p{margin:0}.entry-intro a{color:#325b43;text-underline-offset:3px}.entry-intro a:focus-visible{outline:2px solid #325b43;outline-offset:3px}.tool-entry iframe{flex:1;min-height:0}@media(max-width:600px){.entry-intro{padding:10px 16px}}" +
+        (page ? pageStyle : "")
       : "";
     const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${title} — MST Engineering Tools</title>
+<title>${pageTitle}</title>
 <meta name="description" content="${description}">
-<link rel="canonical" href="https://mst-us.ai/tools/${slug}/">
-<style>html,body{margin:0;width:100%;height:100%;background:#f6f8fa}iframe{display:block;width:100%;height:100vh;height:100dvh;border:0}noscript{display:block;padding:1rem;font:16px system-ui}${introStyle}</style>
-</head><body${introduction ? ' class="tool-entry"' : ""}>${introHtml}<iframe title="MST ${title}" src="https://tools.mst-us.ai/tools/${slug}/${query}" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-downloads allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"></iframe>
-<noscript>Enable JavaScript to run the tool and save your private record.</noscript></body></html>`;
+<link rel="canonical" href="https://mst-us.ai/tools/${slug}/">${
+      page
+        ? `
+<meta property="og:type" content="website"><meta property="og:site_name" content="MST"><meta property="og:title" content="${pageTitle}"><meta property="og:description" content="${description}"><meta property="og:url" content="https://mst-us.ai/tools/${slug}/">
+<meta name="twitter:card" content="summary"><meta name="twitter:title" content="${pageTitle}"><meta name="twitter:description" content="${description}">
+<script type="application/ld+json">${jsonLd(slug, page)}</script>`
+        : ""
+    }
+<style>html,body{margin:0;width:100%;${page ? "" : "height:100%;"}background:#f6f8fa}iframe{display:block;width:100%;height:100vh;height:100dvh;border:0}noscript{display:block;padding:1rem;font:16px system-ui}${introStyle}</style>
+</head><body${introduction ? ` class="tool-entry${page ? " tool-page" : ""}"` : ""}>${introHtml}<iframe title="MST ${title}" src="https://tools.mst-us.ai/tools/${slug}/${query}" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-downloads allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"></iframe>
+<noscript>Enable JavaScript to run the tool and save your private record.</noscript>${page ? renderArticle(page) : ""}</body></html>`;
     return new Response(request.method === "HEAD" ? null : html, {
       headers: {
         ...headers,
