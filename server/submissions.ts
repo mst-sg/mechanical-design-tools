@@ -1,3 +1,4 @@
+import { usageOrigin } from "./usage-daily";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import {
   createReadStream,
@@ -419,6 +420,16 @@ export class SubmissionService {
             "INSERT INTO rate VALUES(?,?,1) ON CONFLICT(address_hash,bucket) DO UPDATE SET count=count+1",
           )
           .run(address, bucket);
+        const first = manifest.files[0];
+        const origin = usageOrigin(this.store, req, ip, {
+          tool: manifest.tool,
+          filename: first?.name,
+          bytes: manifest.files.reduce((n, f) => n + f.size, 0) || undefined,
+          hasEmail: !!manifest.contactEmail,
+          traffic: manifest.traffic,
+        });
+        this.store.usageOriginSet(id, origin, now);
+        this.store.usageBump(origin, "start", now);
         this.store.db.exec("COMMIT");
       } catch (error) {
         this.store.db.exec("ROLLBACK");
@@ -608,6 +619,18 @@ export class SubmissionService {
           "UPDATE submissions SET state='completed',updated=? WHERE id=?",
         )
         .run(Date.now(), id);
+      // The result is browser-reported; "failed" is the client's own status.
+      let status = "";
+      try {
+        status = String(
+          JSON.parse(readFileSync(join(this.dir(id), "record.json"), "utf8"))
+            ?.result?.status,
+        );
+      } catch {
+        /* Unreadable record: count neither outcome. */
+      }
+      if (status === "succeeded") this.store.usageFor(id, "success");
+      else if (status === "failed") this.store.usageFor(id, "fail");
       json(200, this.snapshot(this.get(id)!));
       return true;
     }

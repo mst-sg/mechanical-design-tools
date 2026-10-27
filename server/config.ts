@@ -21,6 +21,9 @@ export type Config = {
   paddleUrl: string;
   paddleToken: string;
   minFreeBytes: number;
+  // Comma-separated IPv4 /24 networks (for example 198.51.100.0/24) whose
+  // usage is flagged internal in the daily aggregate.
+  internalNets: string[];
 };
 export function configuration(overrides: Partial<Config> = {}): Config {
   const origin =
@@ -48,6 +51,10 @@ export function configuration(overrides: Partial<Config> = {}): Config {
     paddleUrl: process.env.MST_JOBS_PADDLE_URL || "http://127.0.0.1:7018",
     paddleToken: process.env.MST_JOBS_PADDLE_TOKEN || "",
     minFreeBytes: 2 * 1024 * 1024 * 1024,
+    internalNets: (process.env.MST_TOOLS_INTERNAL_NETS || "")
+      .split(",")
+      .map((n) => n.trim())
+      .filter(Boolean),
     ...overrides,
   };
 }
