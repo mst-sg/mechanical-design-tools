@@ -225,6 +225,13 @@ export function App({ path }: { path: string }) {
           >
             Build with MST →
           </a>
+          <a
+            href={communityUrl(active?.slug)}
+            target="_top"
+            data-community-link
+          >
+            Discuss in the engineer community →
+          </a>
           <a href="/tools/licenses.html">Open-source licenses</a>
           <a
             href="https://mst-us.ai/privacy/#page-visit-measurement"
@@ -236,6 +243,22 @@ export function App({ path }: { path: string }) {
       </footer>
     </>
   );
+}
+// Engineer community categories on community.mst-us.ai, matched to each tool's topic.
+const COMMUNITY_CATEGORIES: Record<string, string> = {
+  "bom-compare": "bom-part-tables",
+  "bom-check": "bom-part-tables",
+  "bom-model-check": "bom-part-tables",
+  "drawing-to-bom": "bom-part-tables",
+  "drawing-register-compare": "drawing-compare",
+  "title-block-reader": "drawing-compare",
+  "pid-tag-check": "pid-recognition",
+  "connection-table-check": "pid-recognition",
+  "line-list-check": "gas-line-design",
+  "delivery-package-check": "free-tools",
+};
+export function communityUrl(slug?: string) {
+  return `https://community.mst-us.ai/community/c/${(slug && COMMUNITY_CATEGORIES[slug]) || "free-tools"}`;
 }
 function EngineeringDemo() {
   return (
